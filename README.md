@@ -1,3 +1,101 @@
+# 
+
+
+## AIFFEL LMS에서 사전 준비하기
+
+### 준비하기
+```bash
+sudo apt-get update
+```
+
+### FFMPEG 설치하기
+```bash
+sudo apt-get -y install ffmpeg
+```
+
+### Colmap 설치를 위한 의존 라이브러리 설치
+```bash
+sudo apt-get -y install \
+    git \
+    cmake \
+    ninja-build \
+    build-essential \
+    libboost-program-options-dev \
+    libboost-filesystem-dev \
+    libboost-graph-dev \
+    libboost-system-dev \
+    libeigen3-dev \
+    libflann-dev \
+    libfreeimage-dev \
+    libmetis-dev \
+    libgoogle-glog-dev \
+    libgtest-dev \
+    libsqlite3-dev \
+    libglew-dev \
+    qtbase5-dev \
+    libqt5opengl5-dev \
+    libcgal-dev \
+    libceres-dev
+```
+
+### colmap 설치하기
+```bash
+git clone https://github.com/NVIDIA/libglvnd 
+sudo apt-get install -y libxext-dev libx11-dev x11proto-gl-dev
+cd libglvnd/
+sudo apt-get install -y autoconf automake libtool
+sudo apt-get install -y libffi-dev
+./autogen.sh
+./configure
+make  -j4
+sudo make install
+
+
+git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch
+vi ~/colmap/src/feature/sift.cc
+# 879번째 줄로 이동하여 에디터를 통해 아래 내용으로 수정할 것
+# const int code = sift_gpu->RunSIFT(bitmap.ScanWidth(), bitmap.Height(),
+#                                     bitmap_raw_bits.data(), 0x1909, 0x1401)
+cd colmap
+mkdir build
+cd build
+cmake .. -GNinja -DCMAKE_CUDA_ARCHITECTURES=75 -DGUI_ENABLED=OFF
+ninja
+sudo ninja install
+```
+
+### colmap 설치 잘 됐는지 확인하기
+```bash
+colmap -h
+```
+
+### To compile with CUDA support, also install Ubuntu’s default CUDA package
+```bash
+sudo apt-get install -y \
+    nvidia-cuda-toolkit \
+    nvidia-cuda-toolkit-gcc
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # HashNeRF-pytorch
 [Instant-NGP](https://github.com/NVlabs/instant-ngp) recently introduced a Multi-resolution Hash Encoding for neural graphics primitives like [NeRFs](https://www.matthewtancik.com/nerf). The original NVIDIA implementation mainly in C++/CUDA, based on [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn), can train NeRFs upto 100x faster!
 
