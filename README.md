@@ -77,10 +77,13 @@ sudo apt-get install -y \
 ```
 
 
+## Pytorch 1.10.2 Update
+Mesh 라이브러리를 위해서 업데이트 필요
+```bash
+wget https://download.pytorch.org/whl/cu111/torch-1.10.2%2Bcu111-cp39-cp39-linux_x86_64.whl
 
-
-
-
+pip install torch-1.10.2+cu111-cp39-cp39-linux_x86_64.whl
+```
 
 
 
