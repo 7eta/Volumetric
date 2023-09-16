@@ -20,34 +20,37 @@ def do_system(arg):
 
 #First step, Run ffmpeg
 def ffmpeg(video_path, run_now):
-    images = f"images_{run_now}"
+    datas = f"datas_{run_now}"
 
     VIDEO_PATH = "\"" + video_path + "\""
-    OUTPUT_PATH = "\"" + images + "\""
+    OUTPUT_PATH = "\"" + datas + "\""
     fps = 3.0
-    do_system(f"mkdir {images}")
-    do_system(f"ffmpeg -i {VIDEO_PATH} -qscale:v 1 -qmin 1 -vf \"fps={fps}\" {images}/%04d.jpg")
+    do_system(f"mkdir {datas}")
+    do_system(f"mkdir {datas}/images")
 
-    return images
+    do_system(f"ffmpeg -i {VIDEO_PATH} -qscale:v 1 -qmin 1 -vf \"fps={fps}\" {datas}/images/%04d.jpg")
 
-def colmap(image_path):
+    return datas
+
+def colmap(data_path):
     camera_model = 'OPENCV'
     camera_params = ''
-    image_path = "\"" + "./"+ image_path + "\""
-    db_PATH = "\"" + "./" + image_path + "/colmap.db" + "\""
-    sparse_PATH = "\"" + "./" + image_path + "/colmap_sparse" + "\""    
+    image_path = "\"" + "./"+ data_path + '/images'+ "\""
+    db_PATH = "\"" + "./" + data_path + "/colmap.db" + "\""
+    sparse_PATH = "\"" + "./" + data_path + "/colmap_sparse" + "\""    
     do_system(f"colmap feature_extractor --ImageReader.camera_model {camera_model} --ImageReader.camera_params '' --SiftExtraction.estimate_affine_shape=true --SiftExtraction.domain_size_pooling=true --ImageReader.single_camera 1 --database_path {db_PATH} --image_path {image_path}")
     do_system(f"colmap sequential_matcher --SiftMatching.guided_matching=true --database_path {db_PATH}")
     do_system(f"mkdir {sparse_PATH}")
     do_system(f"colmap mapper --database_path {db_PATH} --image_path {image_path} --output_path {sparse_PATH}")
     
-    sparse_PATH = "\"" + "./" + image_path + "/colmap_sparse/0" + "\""
-    text_PATH = "\"" + "./" + image_path + "/text" + "\""
+    sparse_PATH = "\"" + "./" + data_path + "/colmap_sparse/0" + "\""
+    text_PATH = "\"" + "./" + data_path + "/text" + "\""
     do_system(f"colmap bundle_adjuster --input_path {sparse_PATH} --output_path {sparse_PATH} --BundleAdjustment.refine_principal_point 1")
     do_system(f"mkdir {text_PATH}")
     do_system(f"colmap model_converter --input_path {sparse_PATH} --output_path {text_PATH} --output_type TXT")
     
     return f"{image_path}"
+
 def json_run(TEXT_FOLDER, AABB_SCALE=32, SKIP_EARLY=0, keep_colmap_coords=False):
     with open(os.path.join(TEXT_FOLDER,"text", "cameras.txt"), "r") as f:
         camera_angle_x = math.pi / 2
@@ -189,7 +192,7 @@ def json_run(TEXT_FOLDER, AABB_SCALE=32, SKIP_EARLY=0, keep_colmap_coords=False)
 
                     up += c2w[0:3, 1]
 
-                frame = {"file_path": name, "sharpness": b, "transform_matrix": c2w}
+                frame = {"file_path": f"./images/{'_'.join(elems[9:])}", "sharpness": b, "transform_matrix": c2w}
                 if len(cameras) != 1:
                     frame.update(cameras[int(elems[8])])
                 out["frames"].append(frame)
