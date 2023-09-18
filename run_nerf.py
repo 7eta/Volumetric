@@ -27,7 +27,8 @@ from load_blender import load_blender_data
 from load_scannet import load_scannet_data
 from load_LINEMOD import load_LINEMOD_data
 from load_own import load_own_data
-
+from load_ingp import load_ingp_data
+import colmap
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 np.random.seed(0)
@@ -145,7 +146,7 @@ def render(H, W, K, chunk=1024*32, rays=None, c2w=None, ndc=True,
     return ret_list + [ret_dict]
 
 
-def render_path(render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, savedir=None, render_factor=0):
+def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, savedir=None, videodir=None, render_factor=0):
 
     H, W, focal = hwf
     near, far = render_kwargs['near'], render_kwargs['far']
@@ -155,7 +156,9 @@ def render_path(render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, savedi
         H = H//render_factor
         W = W//render_factor
         focal = focal/render_factor
-
+    if videodir is not None:
+        os.makedirs(videodir+'/rgbs', exist_ok=True)
+        os.makedirs(videodir+'/depths', exist_ok=True)
     rgbs = []
     depths = []
     psnrs = []
@@ -180,7 +183,16 @@ def render_path(render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, savedi
             p = -10. * np.log10(np.mean(np.square(rgb.cpu().numpy() - gt_img)))
             print(p)
             psnrs.append(p)
-
+            
+        # video frame images save 
+        if videodir is not None:
+            rgb8 = to8b(rgbs[-1])
+            
+            rgbsname = os.path.join(videodir+'/rgbs', '{:03d}.png'.format(i))
+            depthsname = os.path.join(videodir+'/depths', '{:03d}.png'.format(i))
+            imageio.imwrite(rgbsname, rgb8)
+            imageio.imwrite(depthsname, depths[-1])
+            
         if savedir is not None:
             # save rgb and depth as a figure
             fig = plt.figure(figsize=(25,15))
@@ -188,12 +200,18 @@ def render_path(render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, savedi
             rgb8 = to8b(rgbs[-1])
             ax.imshow(rgb8)
             ax.axis('off')
+            # Show figure title(iter, PSNR) 
+            if gt_imgs is not None and render_factor==0:
+                fig.subplots_adjust(top=0.9)
+                sub_title = f'iters : {str(iter)} PSNR : {p}'
+                fig.suptitle(sub_title, fontsize = 40, y=0.9)
+                
             ax = fig.add_subplot(1, 2, 2)
             ax.imshow(depths[-1], cmap='plasma', vmin=0, vmax=1)
             ax.axis('off')
             filename = os.path.join(savedir, '{:03d}.png'.format(i))
             # save as png
-            plt.savefig(filename, bbox_inches='tight', pad_inches=0)
+            plt.savefig(filename, bbox_inches='tight', pad_inches=0.2)
             plt.close(fig)
             # imageio.imwrite(filename, rgb8)
 
@@ -505,6 +523,8 @@ def config_parser():
                         help='where to store ckpts and logs')
     parser.add_argument("--datadir", type=str, default='./data/llff/fern',
                         help='input data directory')
+    parser.add_argument('--videodir', type=str, default='./data/ingp/ukulele/ukulele.mp4',
+                        help='input video directory')
 
     # training options
     parser.add_argument("--netdepth", type=int, default=8,
@@ -620,8 +640,8 @@ def config_parser():
     parser.add_argument("--tv-loss-weight", type=float, default=1e-6,
                         help='learning rate')
 
-    parser.add_argument("--video_in", type=str, default="",
-                        help='./video/path/video.mp4')
+#     parser.add_argument("--video_in", type=str, default="",
+#                         help='./video/path/video.mp4')
     
         # mesh options 
     parser.add_argument("--mesh_only", action='store_true', 
@@ -684,22 +704,48 @@ def train():
         else:
             images = images[...,:3]
             
-    elif args.dataset_type == 'own':
-        if args.video_in != "":
-            import colmap
-            print(f"colmap return은 {colmap.run(args.video_in)}")
-        images, poses, render_poses, hwf, i_split, bounding_box = load_own_data(args.datadir, args.half_res, args.testskip)
+    elif args.dataset_type == 'ingp':
+        # export transform.json
+        if args.datadir == '':
+            colmap_time = time.time()
+            args.datadir = "./"+colmap.run(args.videodir)
+            print(f"cold2NeRF time : {time.time() - colmap_time}")
+        
+        images, poses, render_poses, hwf, i_test, bounding_box = load_ingp_data(args.datadir, args.factor, width=None, height=None)
         args.bounding_box = bounding_box
-        print('Loaded blender', images.shape, render_poses.shape, hwf, args.datadir)
-        i_train, i_val, i_test = i_split
+        print('Loaded ingp', images.shape, render_poses.shape, hwf, args.datadir)
+        
+        if not isinstance(i_test, list):
+            i_test = [i_test]
+
+        if args.llffhold > 0:
+            print('Auto LLFF/ingp holdout,', args.llffhold)
+            i_test = np.arange(images.shape[0])[::args.llffhold]
+
+        i_val = i_test
+        
+        i_train = np.array([i for i in np.arange(int(images.shape[0])) if
+                        (i not in i_test and i not in i_val)])
 
         near = 2.
-        far = 6.
+        far = 6.  
+        
+#     elif args.dataset_type == 'own':
+#         if args.video_in != "":
+#             import colmap
+#             print(f"colmap return은 {colmap.run(args.video_in)}")
+#         images, poses, render_poses, hwf, i_split, bounding_box = load_own_data(args.datadir, args.half_res, args.testskip)
+#         args.bounding_box = bounding_box
+#         print('Loaded blender', images.shape, render_poses.shape, hwf, args.datadir)
+#         i_train, i_val, i_test = i_split
 
-        if args.white_bkgd:
-            images = images[...,:3]*images[...,-1:] + (1.-images[...,-1:])
-        else:
-            images = images[...,:3]
+#         near = 2.
+#         far = 6.
+
+#         if args.white_bkgd:
+#             images = images[...,:3]*images[...,-1:] + (1.-images[...,-1:])
+#         else:
+#             images = images[...,:3]
 
     elif args.dataset_type == 'scannet':
         images, poses, render_poses, hwf, i_split, bounding_box = load_scannet_data(args.datadir, args.scannet_sceneID, args.half_res)
@@ -812,7 +858,7 @@ def train():
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', render_poses.shape)
 
-            rgbs, _ = render_path(render_poses, hwf, K, args.chunk, render_kwargs_test, gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
+            rgbs, _ = render_path(1, render_poses, hwf, K, args.chunk, render_kwargs_test, gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
             print('Done rendering', testsavedir)
             imageio.mimwrite(os.path.join(testsavedir, 'video.mp4'), to8b(rgbs), fps=30, quality=8)
 
@@ -988,38 +1034,43 @@ def train():
         if i%args.i_video==0 and i > 0:
             # Turn on testing mode
             with torch.no_grad():
-                rgbs, disps = render_path(render_poses, hwf, K, args.chunk, render_kwargs_test)
+                rgbs, disps = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_test, videodir=videosavedir)
             print('Done, saving', rgbs.shape, disps.shape)
             moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
             imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=8)
             imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=8)
-
+            
+            # Save the rander360 numpy file
+            # with open(os.path.join(basedir, expname, "rander_360_rgb.pkl"), "wb") as fp:
+            #     pickle.dump(rgbs, fp)
+            # with open(os.path.join(basedir, expname, "rander_360_disp.pkl"), "wb") as fp:
+            #     pickle.dump(disps / np.max(disps), fp)
+            
             # if args.use_viewdirs:
             #     render_kwargs_test['c2w_staticcam'] = render_poses[0][:3,:4]
             #     with torch.no_grad():
-            #         rgbs_still, _ = render_path(render_poses, hwf, args.chunk, render_kwargs_test)
+            #         rgbs_still, _ = render_path(i,render_poses, hwf, args.chunk, render_kwargs_test)
             #     render_kwargs_test['c2w_staticcam'] = None
             #     imageio.mimwrite(moviebase + 'rgb_still.mp4', to8b(rgbs_still), fps=30, quality=8)
-
-        if i%args.i_mesh==0 and i > 0:
-            levels = [5, 10, 20]
-            print(f"Generating mesh at levels {levels}")
-            num_pts = args.mesh_res
-            root_path = os.path.join(basedir, expname, 'train')
-            os.makedirs(root_path, exist_ok=True)
-
-            with torch.no_grad():
-                generate_and_write_mesh(bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
-            print('Done, saving mesh at ', root_path)
             
         if i%args.i_testset==0 and i > 0:
             testsavedir = os.path.join(basedir, expname, 'testset_{:06d}'.format(i))
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', poses[i_test].shape)
             with torch.no_grad():
-                render_path(torch.Tensor(poses[i_test]).to(device), hwf, K, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
+                render_path(i, torch.Tensor(poses[i_test]).to(device), hwf, K, args.chunk, render_kwargs_testt, gt_imgs=images[i_test], savedir=testsavedir)
             print('Saved test set')
+       
+        if i%args.i_mesh==0 and i > 0:
+            levels = [5, 10, 20]
+            print(f"Generating mesh at levels {levels}")
+            num_pts = args.mesh_res
+            root_path = os.path.join(basedir, expname, 'mash_file')
+            os.makedirs(root_path, exist_ok=True)
 
+            with torch.no_grad():
+                generate_and_write_mesh(i, bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+            print('Done, saving mesh at ', root_path)
 
 
         if i%args.i_print==0:
@@ -1030,7 +1081,8 @@ def train():
             loss_psnr_time = {
                 "losses": loss_list,
                 "psnr": psnr_list,
-                "time": time_list
+                "time": time_list,
+                "iter" : i
             }
             with open(os.path.join(basedir, expname, "loss_vs_time.pkl"), "wb") as fp:
                 pickle.dump(loss_psnr_time, fp)
