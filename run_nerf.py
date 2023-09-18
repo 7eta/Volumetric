@@ -1032,13 +1032,14 @@ def train():
             print('Saved checkpoints at', path)
 
         if i%args.i_video==0 and i > 0:
+            videosavedir = os.path.join(basedir, expname, 'video_frame_{:06d}'.format(i))
             # Turn on testing mode
             with torch.no_grad():
                 rgbs, disps = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_test, videodir=videosavedir)
             print('Done, saving', rgbs.shape, disps.shape)
             moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
-            imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=8)
-            imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=8)
+            imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=4)
+            imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=4)
             
             # Save the rander360 numpy file
             # with open(os.path.join(basedir, expname, "rander_360_rgb.pkl"), "wb") as fp:
@@ -1058,7 +1059,7 @@ def train():
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', poses[i_test].shape)
             with torch.no_grad():
-                render_path(i, torch.Tensor(poses[i_test]).to(device), hwf, K, args.chunk, render_kwargs_testt, gt_imgs=images[i_test], savedir=testsavedir)
+                render_path(i, torch.Tensor(poses[i_test]).to(device), hwf, K, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
             print('Saved test set')
        
         if i%args.i_mesh==0 and i > 0:
