@@ -30,6 +30,7 @@ def convert_sigma_samples_to_ply(
     This function adapted from: https://github.com/RobotLocomotion/spartan
     """
     start_time = time.time()
+    print(ply_filename_out)
 
     verts, faces, normals, values = skimage.measure.marching_cubes(
         input_3d_sigma_array, level=level, spacing=volume_size
@@ -86,16 +87,18 @@ def convert_sigma_samples_to_ply(
 
     vertices_ = np.asarray(mesh.vertices).astype(np.float32)
     triangles = np.asarray(mesh.triangles)
+    N_vertices = len(vertices_)
 
 
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
+    vertex_all = np.empty(N_vertices, vertices_.dtype.descr)
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = triangles
-    _el_verts = plyfile.PlyElement.describe(vertices_, "vertex")
+    _el_verts = plyfile.PlyElement.describe(vertex_all, "vertex")
     _el_faces = plyfile.PlyElement.describe(face, "face")
-    ply_data = plyfile.PlyData([_el_verts, _el_faces])
+    _ply_data = plyfile.PlyData([_el_verts, _el_faces])
     print("saving clusted mesh to %s" % str(ply_filename_out))
-    ply_data.write(ply_filename_out)
+    _ply_data.write(ply_filename_out)
 
     print(
         "converting to ply format and writing to file took {} s".format(
