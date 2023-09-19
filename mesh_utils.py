@@ -91,7 +91,7 @@ def convert_sigma_samples_to_ply(
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = triangles
-    _el_verts = plyfile.PlyElement.describe(vertice_, "vertex")
+    _el_verts = plyfile.PlyElement.describe(vertices_, "vertex")
     _el_faces = plyfile.PlyElement.describe(face, "face")
     ply_data = plyfile.PlyData([_el_verts, _el_faces])
     print("saving clusted mesh to %s" % str(ply_filename_out))
