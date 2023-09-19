@@ -43,7 +43,7 @@ def load_own_data(basedir, half_res=False, testskip=1):
     poses = []
     counts = [0]
     
-#     basedir = os.getcwd()
+    basedir = os.getcwd()
             
     for frame in meta['frames'][::1]:
         fname = os.path.join(basedir, frame['file_path'])

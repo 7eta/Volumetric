@@ -75,27 +75,28 @@ def convert_sigma_samples_to_ply(
     ply_data.write(ply_filename_out)
 
     # remove noise in the mesh by keeping only the biggest cluster
-    print('Removing noise ...')
-    mesh - o3d.io.read_triangle_mesh(ply_filename_out)
-    idxs, count, _ = mesh.cluster_connected_triangles()
-    max_cluster_idx = np.argmax(count)
-    triangles_to_remove = [i for i in range(len(faces_tuple)) if idxs[i] != max_cluster_idx]
-    mesh.remove_triangles_by_index(triangles_to_remove)
-    mesh.remove_unreferenced_vertices()
-    print(f'Mesh has {len(mesh.vertices)/1e6:.2f} M vertices and {len(mesh.triangles)/1e6:.2f} M faces.')
+#    print('Removing noise ...')
+#    mesh = o3d.io.read_triangle_mesh(ply_filename_out)
+#    idxs, count, _ = mesh.cluster_connected_triangles()
+#    max_cluster_idx = np.argmax(count)
+#    triangles_to_remove = [i for i in range(len(faces_tuple)) if idxs[i] != max_cluster_idx]
+#    mesh.remove_triangles_by_index(triangles_to_remove)
+#    mesh.remove_unreferenced_vertices()
+#    print(f'Mesh has {len(mesh.vertices)/1e6:.2f} M vertices and {len(mesh.triangles)/1e6:.2f} M faces.')
 
-    vertices_ = np.asarray(mesh.vertices).astype(np.float32)
-    triangles = np.asarray(mesh.triangles)
+#    vertices_ = np.asarray(mesh.vertices).astype(np.float32)
+#    triangles = np.asarray(mesh.triangles)
 
 
 
-    vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
-    face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
-    _el_verts = plyfile.PlyElement.describe(verts_tuple, "vertex")
-    _el_faces = plyfile.PlyElement.describe(face, "face")
-    ply_data = plyfile.PlyData([_el_verts, _el_faces])
-    print("saving clusted mesh to %s" % str(ply_filename_out))
-    ply_data.write(ply_filename_out)
+#    vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
+#    face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
+#    face['vertex_indices'] = triangles
+#    _el_verts = plyfile.PlyElement.describe(vertice_, "vertex")
+#    _el_faces = plyfile.PlyElement.describe(face, "face")
+#    ply_data = plyfile.PlyData([_el_verts, _el_faces])
+#    print("saving clusted mesh to %s" % str(ply_filename_out))
+#    ply_data.write(ply_filename_out)
 
     print(
         "converting to ply format and writing to file took {} s".format(

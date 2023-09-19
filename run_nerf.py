@@ -626,7 +626,7 @@ def config_parser():
                         help='frequency of weight ckpt saving')
     parser.add_argument("--i_testset", type=int, default=1000,
                         help='frequency of testset saving')
-    parser.add_argument("--i_video",   type=int, default=500,
+    parser.add_argument("--i_video",   type=int, default=4000,
                         help='frequency of render_poses video saving')
     parser.add_argument("--i_mesh", type=int, default=1000,
                         help='frequency of mesh saving')
@@ -640,8 +640,8 @@ def config_parser():
     parser.add_argument("--tv-loss-weight", type=float, default=1e-6,
                         help='learning rate')
 
-#     parser.add_argument("--video_in", type=str, default="",
-#                         help='./video/path/video.mp4')
+    parser.add_argument("--video_in", type=str, default="",
+                        help='./video/path/video.mp4')
     
         # mesh options 
     parser.add_argument("--mesh_only", action='store_true', 
@@ -730,22 +730,22 @@ def train():
         near = 2.
         far = 6.  
         
-#     elif args.dataset_type == 'own':
-#         if args.video_in != "":
-#             import colmap
-#             print(f"colmap return은 {colmap.run(args.video_in)}")
-#         images, poses, render_poses, hwf, i_split, bounding_box = load_own_data(args.datadir, args.half_res, args.testskip)
-#         args.bounding_box = bounding_box
-#         print('Loaded blender', images.shape, render_poses.shape, hwf, args.datadir)
-#         i_train, i_val, i_test = i_split
+    elif args.dataset_type == 'own':
+        if args.video_in != "":
+             import colmap
+             print(f"colmap return은 {colmap.run(args.video_in)}")
+        images, poses, render_poses, hwf, i_split, bounding_box = load_own_data(args.datadir, args.half_res, args.testskip)
+        args.bounding_box = bounding_box
+        print('Loaded blender', images.shape, render_poses.shape, hwf, args.datadir)
+        i_train, i_val, i_test = i_split
 
-#         near = 2.
-#         far = 6.
+        near = 2.
+        far = 6.
 
-#         if args.white_bkgd:
-#             images = images[...,:3]*images[...,-1:] + (1.-images[...,-1:])
-#         else:
-#             images = images[...,:3]
+        if args.white_bkgd:
+            images = images[...,:3]*images[...,-1:] + (1.-images[...,-1:])
+        else:
+            images = images[...,:3]
 
     elif args.dataset_type == 'scannet':
         images, poses, render_poses, hwf, i_split, bounding_box = load_scannet_data(args.datadir, args.scannet_sceneID, args.half_res)
@@ -870,7 +870,7 @@ def train():
         num_pts = args.mesh_res
         root_path = os.path.join(basedir, expname, 'test')
         os.makedirs(root_path, exist_ok=True)
-        generate_and_write_mesh(bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+        generate_and_write_mesh(0, bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
         print('Done, saving mesh at ', root_path)
         return 
 
@@ -1058,7 +1058,7 @@ def train():
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', poses[i_test].shape)
             with torch.no_grad():
-                render_path(i, torch.Tensor(poses[i_test]).to(device), hwf, K, args.chunk, render_kwargs_testt, gt_imgs=images[i_test], savedir=testsavedir)
+                render_path(i, torch.Tensor(poses[i_test]).to(device), hwf, K, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
             print('Saved test set')
        
         if i%args.i_mesh==0 and i > 0:
