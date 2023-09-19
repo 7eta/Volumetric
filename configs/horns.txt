@@ -1,6 +1,6 @@
 expname = horns_test
 basedir = ./logs
-datadir = ./data/nerf_llff_data/horns
+datadir = ./data/llff/horns
 dataset_type = llff
 
 factor = 8

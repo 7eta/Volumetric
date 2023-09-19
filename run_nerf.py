@@ -521,7 +521,7 @@ def config_parser():
                         help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/',
                         help='where to store ckpts and logs')
-    parser.add_argument("--datadir", type=str, default='./data/llff/fern',
+    parser.add_argument("--datadir", type=str, default='',
                         help='input data directory')
     parser.add_argument('--videodir', type=str, default='./data/ingp/ukulele/ukulele.mp4',
                         help='input video directory')
@@ -620,13 +620,13 @@ def config_parser():
     # logging/saving options
     parser.add_argument("--i_print",   type=int, default=100,
                         help='frequency of console printout and metric loggin')
-    parser.add_argument("--i_img",     type=int, default=500,
+    parser.add_argument("--i_img",     type=int, default=1000,
                         help='frequency of tensorboard image logging')
     parser.add_argument("--i_weights", type=int, default=10000,
                         help='frequency of weight ckpt saving')
     parser.add_argument("--i_testset", type=int, default=1000,
                         help='frequency of testset saving')
-    parser.add_argument("--i_video",   type=int, default=500,
+    parser.add_argument("--i_video",   type=int, default=1000,
                         help='frequency of render_poses video saving')
     parser.add_argument("--i_mesh", type=int, default=1000,
                         help='frequency of mesh saving')
@@ -868,9 +868,10 @@ def train():
         levels = [0, 5, 10, 15, 20]
         print(f"Generating mesh at levels {levels}")
         num_pts = args.mesh_res
-        root_path = os.path.join(basedir, expname, 'test')
+        root_path = os.path.join(basedir, expname, 'mesh_test')
         os.makedirs(root_path, exist_ok=True)
-        generate_and_write_mesh(bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+        print(root_path)
+        generate_and_write_mesh(1,bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
         print('Done, saving mesh at ', root_path)
         return 
 
@@ -901,7 +902,7 @@ def train():
         rays_rgb = torch.Tensor(rays_rgb).to(device)
 
 
-    N_iters = 3000 + 1
+    N_iters = 1000 + 1
     print('Begin')
     print('TRAIN views are', i_train)
     print('TEST views are', i_test)
@@ -1070,7 +1071,7 @@ def train():
             os.makedirs(root_path, exist_ok=True)
 
             with torch.no_grad():
-                generate_and_write_mesh(i, bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+                generate_and_write_mesh(global_step, bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
             print('Done, saving mesh at ', root_path)
 
 
