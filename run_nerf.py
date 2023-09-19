@@ -901,7 +901,7 @@ def train():
         rays_rgb = torch.Tensor(rays_rgb).to(device)
 
 
-    N_iters = 3000 + 1
+    N_iters = 30000 + 1
     print('Begin')
     print('TRAIN views are', i_train)
     print('TEST views are', i_test)
