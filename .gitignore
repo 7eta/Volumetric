@@ -8,7 +8,7 @@ torch-*.whl
 data/
 logs/
 colmap/
-<<<<<<< HEAD
+
 images_*/
-=======
->>>>>>> 2ae3ad97e9aa720d57841cc3704117e90d90e269
+
+
