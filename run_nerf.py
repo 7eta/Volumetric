@@ -167,10 +167,8 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
     depths = []
     psnrs = []
     ssims = []
-    t = time.time()
+    t0 = time.time()
     for i, c2w in enumerate(tqdm(render_poses)):
-        print(i, time.time() - t)
-        t = time.time()
         rgb, depth, acc, _ = render(H, W, K, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
         rgbs.append(rgb.cpu().numpy())
         # normalize depth to [0,1]
@@ -222,10 +220,10 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
             plt.savefig(filename, bbox_inches='tight', pad_inches=0.2)
             plt.close(fig)
             # imageio.imwrite(filename, rgb8)
-
-
+    render_time = time.time()-t0
     rgbs = np.stack(rgbs, 0)
     depths = np.stack(depths, 0)
+    print("render_time",render_time)
     if gt_imgs is not None and render_factor==0:
         avg_psnr = sum(psnrs)/len(psnrs)
         avg_ssim = sum(ssims)/len(ssims)
@@ -638,9 +636,7 @@ def config_parser():
                         help='frequency of weight ckpt saving')
     parser.add_argument("--i_testset", type=int, default=1000,
                         help='frequency of testset saving')
-
     parser.add_argument("--i_video",   type=int, default=1000,
-
                         help='frequency of render_poses video saving')
     parser.add_argument("--i_mesh", type=int, default=1000,
                         help='frequency of mesh saving')
@@ -1089,7 +1085,7 @@ def train():
             os.makedirs(root_path, exist_ok=True)
 
             with torch.no_grad():
-                generate_and_write_mesh(global_step, bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+                generate_and_write_mesh(i, bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
             print('Done, saving mesh at ', root_path)
 
 
