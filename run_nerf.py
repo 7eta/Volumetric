@@ -21,6 +21,10 @@ from radam import RAdam
 from loss import sigma_sparsity_loss, total_variation_loss
 from mesh_utils import generate_and_write_mesh
 
+# from torchmetrics.functional import structural_similarity_index_measure
+from skimage.metrics import structural_similarity
+# from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+
 from load_llff import load_llff_data
 from load_deepvoxels import load_dv_data
 from load_blender import load_blender_data
@@ -162,7 +166,7 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
     rgbs = []
     depths = []
     psnrs = []
-
+    ssims = []
     t = time.time()
     for i, c2w in enumerate(tqdm(render_poses)):
         print(i, time.time() - t)
@@ -172,6 +176,7 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
         # normalize depth to [0,1]
         depth = (depth - near) / (far - near)
         depths.append(depth.cpu().numpy())
+                
         if i==0:
             print(rgb.shape, depth.shape)
 
@@ -181,9 +186,12 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
             except:
                 gt_img = gt_imgs[i]
             p = -10. * np.log10(np.mean(np.square(rgb.cpu().numpy() - gt_img)))
-            print(p)
+            ssim, _ = structural_similarity(gt_img, rgbs[i], channel_axis=2, full=True, multichannel=True)
+            print(p,ssim)
             psnrs.append(p)
-            
+            ssims.append(ssim)
+        
+        
         # video frame images save 
         if videodir is not None:
             rgb8 = to8b(rgbs[-1])
@@ -203,7 +211,7 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
             # Show figure title(iter, PSNR) 
             if gt_imgs is not None and render_factor==0:
                 fig.subplots_adjust(top=0.9)
-                sub_title = f'iters : {str(iter)} PSNR : {p}'
+                sub_title = f'iters : {str(iter)} PSNR : {p:06.4f} SSIM : {ssim:06.5f}'
                 fig.suptitle(sub_title, fontsize = 40, y=0.9)
                 
             ax = fig.add_subplot(1, 2, 2)
@@ -220,9 +228,11 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
     depths = np.stack(depths, 0)
     if gt_imgs is not None and render_factor==0:
         avg_psnr = sum(psnrs)/len(psnrs)
+        avg_ssim = sum(ssims)/len(ssims)
         print("Avg PSNR over Test set: ", avg_psnr)
-        with open(os.path.join(savedir, "test_psnrs_avg{:0.2f}.pkl".format(avg_psnr)), "wb") as fp:
-            pickle.dump(psnrs, fp)
+        print("Avg SSIM over Test set: ", avg_ssim)
+        with open(os.path.join(savedir, "test_psnrs_avg{:0.2f}_ssim_avg{:0.4f}.pkl".format(avg_psnr,avg_ssim)), "wb") as fp:
+            pickle.dump([psnrs,ssims], fp)
 
     return rgbs, depths
 
@@ -521,7 +531,7 @@ def config_parser():
                         help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/',
                         help='where to store ckpts and logs')
-    parser.add_argument("--datadir", type=str, default='./data/llff/fern',
+    parser.add_argument("--datadir", type=str, default='',
                         help='input data directory')
     parser.add_argument('--videodir', type=str, default='./data/ingp/ukulele/ukulele.mp4',
                         help='input video directory')
@@ -618,15 +628,19 @@ def config_parser():
                         help='will take every 1/N images as LLFF test set, paper uses 8')
 
     # logging/saving options
+    parser.add_argument("--n_iters", type=int, default=1000,
+                        help='number of iteration')
     parser.add_argument("--i_print",   type=int, default=100,
                         help='frequency of console printout and metric loggin')
-    parser.add_argument("--i_img",     type=int, default=500,
+    parser.add_argument("--i_img",     type=int, default=1000,
                         help='frequency of tensorboard image logging')
-    parser.add_argument("--i_weights", type=int, default=10000,
+    parser.add_argument("--i_weights", type=int, default=1000,
                         help='frequency of weight ckpt saving')
     parser.add_argument("--i_testset", type=int, default=1000,
                         help='frequency of testset saving')
-    parser.add_argument("--i_video",   type=int, default=4000,
+
+    parser.add_argument("--i_video",   type=int, default=1000,
+
                         help='frequency of render_poses video saving')
     parser.add_argument("--i_mesh", type=int, default=1000,
                         help='frequency of mesh saving')
@@ -858,7 +872,7 @@ def train():
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', render_poses.shape)
 
-            rgbs, _ = render_path(1, render_poses, hwf, K, args.chunk, render_kwargs_test, gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
+            rgbs, _ = render_path(global_step, render_poses, hwf, K, args.chunk, render_kwargs_test, gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
             print('Done rendering', testsavedir)
             imageio.mimwrite(os.path.join(testsavedir, 'video.mp4'), to8b(rgbs), fps=30, quality=8)
 
@@ -868,9 +882,11 @@ def train():
         levels = [0, 5, 10, 15, 20]
         print(f"Generating mesh at levels {levels}")
         num_pts = args.mesh_res
-        root_path = os.path.join(basedir, expname, 'test')
+        root_path = os.path.join(basedir, expname, 'mesh_test')
         os.makedirs(root_path, exist_ok=True)
-        generate_and_write_mesh(0, bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+        print(root_path)
+        generate_and_write_mesh(global_step,bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+
         print('Done, saving mesh at ', root_path)
         return 
 
@@ -900,8 +916,8 @@ def train():
     if use_batching:
         rays_rgb = torch.Tensor(rays_rgb).to(device)
 
+    N_iters = args.n_iters + 1
 
-    N_iters = 30000 + 1
     print('Begin')
     print('TRAIN views are', i_train)
     print('TEST views are', i_test)
@@ -913,6 +929,8 @@ def train():
     loss_list = []
     psnr_list = []
     time_list = []
+    metrics_list = []
+    
     start = start + 1
     time0 = time.time()
     for i in trange(start, N_iters):
@@ -971,7 +989,7 @@ def train():
         trans = extras['raw'][...,-1]
         loss = img_loss
         psnr = mse2psnr(img_loss)
-
+        
         if 'rgb0' in extras:
             img_loss0 = img2mse(extras['rgb0'], target_s)
             loss = loss + img_loss0
@@ -1032,13 +1050,14 @@ def train():
             print('Saved checkpoints at', path)
 
         if i%args.i_video==0 and i > 0:
+            videosavedir = os.path.join(basedir, expname, 'video_frame_{:06d}'.format(i))
             # Turn on testing mode
             with torch.no_grad():
                 rgbs, disps = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_test, videodir=videosavedir)
             print('Done, saving', rgbs.shape, disps.shape)
             moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
-            imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=8)
-            imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=8)
+            imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=4)
+            imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=4)
             
             # Save the rander360 numpy file
             # with open(os.path.join(basedir, expname, "rander_360_rgb.pkl"), "wb") as fp:
@@ -1057,6 +1076,7 @@ def train():
             testsavedir = os.path.join(basedir, expname, 'testset_{:06d}'.format(i))
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', poses[i_test].shape)
+           
             with torch.no_grad():
                 render_path(i, torch.Tensor(poses[i_test]).to(device), hwf, K, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
             print('Saved test set')
@@ -1069,7 +1089,7 @@ def train():
             os.makedirs(root_path, exist_ok=True)
 
             with torch.no_grad():
-                generate_and_write_mesh(i, bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+                generate_and_write_mesh(global_step, bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
             print('Done, saving mesh at ', root_path)
 
 

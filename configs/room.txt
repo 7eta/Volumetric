@@ -1,6 +1,6 @@
 expname = room_test
 basedir = ./logs
-datadir = ./data/nerf_llff_data/room
+datadir = ./data/llff/room
 dataset_type = llff
 
 factor = 8
