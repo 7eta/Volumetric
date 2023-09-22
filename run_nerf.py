@@ -234,6 +234,8 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
         with open(os.path.join(savedir, "test_psnrs_avg{:0.2f}_ssim_avg{:0.4f}.pkl".format(avg_psnr,avg_ssim)), "wb") as fp:
             pickle.dump([psnrs,ssims], fp)
 
+    print(f"rgbs의 shape은{rgbs.shape}")
+
     return rgbs, depths
 
 
