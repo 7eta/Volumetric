@@ -21,9 +21,8 @@ from radam import RAdam
 from loss import sigma_sparsity_loss, total_variation_loss
 from mesh_utils import generate_and_write_mesh
 
-# from torchmetrics.functional import structural_similarity_index_measure
 from skimage.metrics import structural_similarity
-# from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from lpips_pytorch import LPIPS, lpips
 
 from load_llff import load_llff_data
 from load_deepvoxels import load_dv_data
@@ -167,6 +166,7 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
     depths = []
     psnrs = []
     ssims = []
+    lpipss = []
     t0 = time.time()
     for i, c2w in enumerate(tqdm(render_poses)):
         rgb, depth, acc, _ = render(H, W, K, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
@@ -185,10 +185,16 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
                 gt_img = gt_imgs[i]
             p = -10. * np.log10(np.mean(np.square(rgb.cpu().numpy() - gt_img)))
             ssim, _ = structural_similarity(gt_img, rgbs[i], channel_axis=2, full=True, multichannel=True)
-            print(p,ssim)
+            criterion = LPIPS(
+                net_type='alex',  # choose a network type from ['alex', 'squeeze', 'vgg']
+                version='0.1')
+            
+            lpips_loss = criterion(torch.FloatTensor(np.transpose(gt_img,(2,0,1))).to('cuda'), torch.FloatTensor(np.transpose(rgbs[i],(2,0,1))).to('cuda'))
+            lpips_loss = lpips_loss.tolist()[0][0][0][0]
+            print(f'PSNR : {p:6.4f} SSIM : {ssim:5.4f} LPIPS : {lpips_loss:6.5f}')
             psnrs.append(p)
             ssims.append(ssim)
-        
+            lpipss.append(lpips_loss)
         
         # video frame images save 
         if videodir is not None:
@@ -209,7 +215,7 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
             # Show figure title(iter, PSNR) 
             if gt_imgs is not None and render_factor==0:
                 fig.subplots_adjust(top=0.9)
-                sub_title = f'iters : {str(iter)} PSNR : {p:06.4f} SSIM : {ssim:06.5f}'
+                sub_title = f'iters : {str(iter)}\nPSNR : {p:6.4f} SSIM : {ssim:5.4f} LPIPS : {lpips_loss:6.5f}'
                 fig.suptitle(sub_title, fontsize = 40, y=0.9)
                 
             ax = fig.add_subplot(1, 2, 2)
@@ -227,10 +233,12 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
     if gt_imgs is not None and render_factor==0:
         avg_psnr = sum(psnrs)/len(psnrs)
         avg_ssim = sum(ssims)/len(ssims)
+        avg_lpips = sum(lpipss)/len(lpipss)
         print("Avg PSNR over Test set: ", avg_psnr)
         print("Avg SSIM over Test set: ", avg_ssim)
-        with open(os.path.join(savedir, "test_psnrs_avg{:0.2f}_ssim_avg{:0.4f}.pkl".format(avg_psnr,avg_ssim)), "wb") as fp:
-            pickle.dump([psnrs,ssims], fp)
+        print("Avg LPIPS over Test set: ", avg_lpips)
+        with open(os.path.join(savedir, "test_psnrs_avg{:6.4f}_ssim_avg{:0.4f}_lpips_avg{:5.4f}.pkl".format(avg_psnr,avg_ssim,avg_lpips)), "wb") as fp:
+            pickle.dump([psnrs,ssims,lpipss], fp)
 
     return rgbs, depths
 
@@ -626,19 +634,19 @@ def config_parser():
                         help='will take every 1/N images as LLFF test set, paper uses 8')
 
     # logging/saving options
-    parser.add_argument("--n_iters", type=int, default=1000,
+    parser.add_argument("--n_iters", type=int, default=3000,
                         help='number of iteration')
     parser.add_argument("--i_print",   type=int, default=100,
                         help='frequency of console printout and metric loggin')
-    parser.add_argument("--i_img",     type=int, default=1000,
+    parser.add_argument("--i_img",     type=int, default=3000,
                         help='frequency of tensorboard image logging')
-    parser.add_argument("--i_weights", type=int, default=1000,
+    parser.add_argument("--i_weights", type=int, default=3000,
                         help='frequency of weight ckpt saving')
-    parser.add_argument("--i_testset", type=int, default=1000,
+    parser.add_argument("--i_testset", type=int, default=3000,
                         help='frequency of testset saving')
-    parser.add_argument("--i_video",   type=int, default=1000,
+    parser.add_argument("--i_video",   type=int, default=3000,
                         help='frequency of render_poses video saving')
-    parser.add_argument("--i_mesh", type=int, default=1000,
+    parser.add_argument("--i_mesh", type=int, default=3000,
                         help='frequency of mesh saving')
 
     parser.add_argument("--finest_res",   type=int, default=512,
@@ -717,8 +725,9 @@ def train():
     elif args.dataset_type == 'ingp':
         # export transform.json
         if args.datadir == '':
+            import colmap
             colmap_time = time.time()
-            args.datadir = "./"+colmap.run(args.videodir)
+            args.datadir = "./" + colmap.run(args.videodir)
             print(f"cold2NeRF time : {time.time() - colmap_time}")
         
         images, poses, render_poses, hwf, i_test, bounding_box = load_ingp_data(args.datadir, args.factor, width=None, height=None)
@@ -851,8 +860,8 @@ def train():
     render_kwargs_test.update(bds_dict)
 
     # Move testing data to GPU
-    render_poses = torch.Tensor(render_poses).to(device)
-
+    render_poses = torch.Tensor(render_poses).to(device)      
+    
     # Short circuit if only rendering out from trained model
     if args.render_only:
         print('RENDER ONLY')
@@ -885,7 +894,31 @@ def train():
 
         print('Done, saving mesh at ', root_path)
         return 
+    
+#     if args.train_graph:
+#         root_path = os.path.join(basedir, expname, "train_graph")
+#         os.makedirs(root_path, exist_ok=True)
+#         with open(os.path.join(basedir, expname,'loss_vs_time.pkl'),'rb') as f:
+#             loss_time = pickle.load(f)
+            
+#         x_time = data['time']
+#         # losses = gaussian_filter1d(data['losses'], sigma=10)
+#         # psnr = gaussian_filter1d(data['psnr'], sigma=10)
+#         losses = data['losses']
+#         psnr = data['psnr']
+#         plt.figure()
+#         fig, ax1 = plt.subplots()
+#         ax1.plot(x,losses,'r')
+#         ax1.tick_params(axis='y', labelcolor='red')
+#         plt.xlabel('time')
+#         plt.ylabel('losses')
 
+#         ax2 = ax1.twinx()
+#         ax2.plot(x,psnr,'b')
+#         ax2.tick_params(axis='y', labelcolor='blue')
+#         plt.ylabel('PSNR')
+#         plt.title('ukulele [Train] Losses, PSNR')
+        
     # Prepare raybatch tensor if batching random rays
     N_rand = args.N_rand
     use_batching = not args.no_batching
@@ -985,7 +1018,7 @@ def train():
         trans = extras['raw'][...,-1]
         loss = img_loss
         psnr = mse2psnr(img_loss)
-        
+
         if 'rgb0' in extras:
             img_loss0 = img2mse(extras['rgb0'], target_s)
             loss = loss + img_loss0
@@ -993,7 +1026,7 @@ def train():
 
         sparsity_loss = args.sparse_loss_weight*(extras["sparsity_loss"].sum() + extras["sparsity_loss0"].sum())
         loss = loss + sparsity_loss
-
+    
         # add Total Variation loss
         if args.i_embed==1:
             n_levels = render_kwargs_train["embed_fn"].n_levels
@@ -1005,7 +1038,7 @@ def train():
                                               i, log2_hashmap_size, \
                                               n_levels=n_levels) for i in range(n_levels))
             loss = loss + args.tv_loss_weight * TV_loss
-            if i>1000:
+            if i>500:
                 args.tv_loss_weight = 0.0
 
         loss.backward()
@@ -1055,7 +1088,7 @@ def train():
             imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=4)
             imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=4)
             
-            # Save the rander360 numpy file
+            # Save the rander numpy file
             # with open(os.path.join(basedir, expname, "rander_360_rgb.pkl"), "wb") as fp:
             #     pickle.dump(rgbs, fp)
             # with open(os.path.join(basedir, expname, "rander_360_disp.pkl"), "wb") as fp:
@@ -1078,6 +1111,7 @@ def train():
             print('Saved test set')
        
         if i%args.i_mesh==0 and i > 0:
+            mesh_t0 = time.time()
             levels = [5, 10, 20]
             print(f"Generating mesh at levels {levels}")
             num_pts = args.mesh_res
@@ -1086,7 +1120,7 @@ def train():
 
             with torch.no_grad():
                 generate_and_write_mesh(i, bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
-            print('Done, saving mesh at ', root_path)
+            print('Done, saving mesh at ', root_path,"Time : ")
 
 
         if i%args.i_print==0:
@@ -1102,10 +1136,10 @@ def train():
             }
             with open(os.path.join(basedir, expname, "loss_vs_time.pkl"), "wb") as fp:
                 pickle.dump(loss_psnr_time, fp)
-
+            
         global_step += 1
 
-
+        
 if __name__=='__main__':
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
