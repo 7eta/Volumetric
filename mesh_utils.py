@@ -288,11 +288,11 @@ def convert_sigma_samples_to_ply(
     N_vertices = len(vertices_)
     print(f"len(N_vertices) is {N_vertices}.")
     vertices_homo = np.concatenate([vertices_, np.ones((N_vertices, 1))], 1) # (N, 4)
-    print(f"target shape is{target.shape}")
+    # print(f"target shape is{target.shape}")
 
     non_occluded_sum = np.zeros((N_vertices, 1))
     v_color_sum = np.zeros((N_vertices, 3))
-    print(f"type is {type(target)}")
+    # print(f"type is {type(target)}")
 
     for idx in tqdm(range(len(target))):
         min_value = np.min(target[idx])
@@ -302,8 +302,10 @@ def convert_sigma_samples_to_ply(
         image = Image.fromarray(image_array)
         image = image.resize((W, H), Image.LANCZOS)
         image = np.array(image)
+        print(f"@@image shape : {image.shape}")
         ## project vertices from world coordinate to camera coordinate
         vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back"
+        print(f"@@vertices_cam shape : {vertices_cam.shape}")
         vertices_cam[1:] *= -1 # (3, N) in "right down forward"
         ## project vertices from camera coordinate to pixel coordinate
         vertices_image = (K @ vertices_cam).T # (N, 3)
