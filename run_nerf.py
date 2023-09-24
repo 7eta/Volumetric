@@ -144,7 +144,7 @@ def render(H, W, K, chunk=1024*32, rays=None, c2w=None, ndc=True,
         k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
         all_ret[k] = torch.reshape(all_ret[k], k_sh)
 
-    k_extract = ['rgb_map', 'depth_map', 'acc_map', 'weights']
+    k_extract = ['rgb_map', 'depth_map', 'acc_map', 'weight']
     ret_list = [all_ret[k] for k in k_extract]
     ret_dict = {k : all_ret[k] for k in all_ret if k not in k_extract}
     return ret_list + [ret_dict]
@@ -165,17 +165,19 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
         os.makedirs(videodir+'/depths', exist_ok=True)
     rgbs = []
     depths = []
+    weights = []
     psnrs = []
     ssims = []
     t = time.time()
     for i, c2w in enumerate(tqdm(render_poses)):
         print(i, time.time() - t)
         t = time.time()
-        rgb, depth, acc, weights, _ = render(H, W, K, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
+        rgb, depth, acc, weight, _ = render(H, W, K, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
         rgbs.append(rgb.cpu().numpy())
         # normalize depth to [0,1]
         depth = (depth - near) / (far - near)
         depths.append(depth.cpu().numpy())
+        weights.append(weight.cpu().numpy().sum(1))
                 
         if i==0:
             print(rgb.shape, depth.shape)
@@ -234,7 +236,7 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
         with open(os.path.join(savedir, "test_psnrs_avg{:0.2f}_ssim_avg{:0.4f}.pkl".format(avg_psnr,avg_ssim)), "wb") as fp:
             pickle.dump([psnrs,ssims], fp)
 
-    return rgbs, depths
+    return rgbs, depths, weights
 
 
 def create_nerf(args):
@@ -504,7 +506,7 @@ def render_rays(ray_batch,
 
         rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 
-    ret = {'rgb_map' : rgb_map, 'depth_map' : depth_map, 'acc_map' : acc_map, 'sparsity_loss': sparsity_loss, 'weights' : weights}
+    ret = {'rgb_map' : rgb_map, 'depth_map' : depth_map, 'acc_map' : acc_map, 'sparsity_loss': sparsity_loss, 'weight' : weights}
     if retraw:
         ret['raw'] = raw
     if N_importance > 0:
@@ -1091,7 +1093,8 @@ def train():
             P_c2w = poses[i_train] #np.array(poses).astype(np.float32)
 
             with torch.no_grad():
-                generate_and_write_mesh(global_step, bounding_box, target, P_c2w, hwf, weights, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+                _, _, weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_train, videodir=videosavedir)
+                generate_and_write_mesh(global_step, bounding_box, target, P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
             print('Done, saving mesh at ', root_path)
 
 
