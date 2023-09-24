@@ -668,8 +668,11 @@ def config_parser():
                         help='do not optimize, reload weights and generate mesh')
     parser.add_argument("--mesh_res", type=int, default=256, 
                         help='resolution of grid for marching cubes')
-
-
+    
+    # save loss psnr graph
+    parser.add_argument("--train_graph", action='store_true', 
+                        help='Check loss and psnr during training.')
+    
     return parser
 
 
@@ -897,29 +900,38 @@ def train():
         print('Done, saving mesh at ', root_path)
         return 
     
-#     if args.train_graph:
-#         root_path = os.path.join(basedir, expname, "train_graph")
-#         os.makedirs(root_path, exist_ok=True)
-#         with open(os.path.join(basedir, expname,'loss_vs_time.pkl'),'rb') as f:
-#             loss_time = pickle.load(f)
+    if args.train_graph:
+        root_path = os.path.join(basedir, expname, "train_graph")
+        os.makedirs(root_path, exist_ok=True)
+        with open(os.path.join(basedir, expname,'loss_vs_time.pkl'),'rb') as f:
+            graph_loss = pickle.load(f)
             
-#         x_time = data['time']
-#         # losses = gaussian_filter1d(data['losses'], sigma=10)
-#         # psnr = gaussian_filter1d(data['psnr'], sigma=10)
-#         losses = data['losses']
-#         psnr = data['psnr']
-#         plt.figure()
-#         fig, ax1 = plt.subplots()
-#         ax1.plot(x,losses,'r')
-#         ax1.tick_params(axis='y', labelcolor='red')
-#         plt.xlabel('time')
-#         plt.ylabel('losses')
+        graph_time = graph_loss['time']
+        # graph_losses = gaussian_filter1d(graph_loss['losses'], sigma=10)
+        # graph_psnr = gaussian_filter1d(graph_loss['psnr'], sigma=10)
+        graph_losses = graph_loss['losses']
+        graph_psnr = graph_loss['psnr']
+        plt.figure()
+        fig, ax1 = plt.subplots()
+        ax1.plot(graph_time,graph_losses,'r')
+        ax1.tick_params(axis='y', labelcolor='red')
+        plt.xlabel('time')
+        plt.ylabel('losses')
 
-#         ax2 = ax1.twinx()
-#         ax2.plot(x,psnr,'b')
-#         ax2.tick_params(axis='y', labelcolor='blue')
-#         plt.ylabel('PSNR')
-#         plt.title('ukulele [Train] Losses, PSNR')
+        ax2 = ax1.twinx()
+        ax2.plot(graph_time,graph_psnr,'b')
+        ax2.tick_params(axis='y', labelcolor='blue')
+        plt.ylabel('PSNR')
+        plt.title('ukulele [Train] Losses, PSNR')
+        
+        filename = os.path.join(root_path, 'loss_vs_time_graph.png')
+        # save as png
+        plt.savefig(filename, bbox_inches='tight', pad_inches=0.2)
+        plt.close(fig)
+        
+        print('Done, saving graph at ', filename)
+        return 
+        
         
     # Prepare raybatch tensor if batching random rays
     N_rand = args.N_rand

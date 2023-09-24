@@ -1,6 +1,6 @@
 expname = ingp_barchair
 basedir = ./logs
-videodir = ./data/ingp/barchair
+videodir = ./data/ingp/barchair/barchair.mp4
 dataset_type = ingp
 
 no_batching = True
