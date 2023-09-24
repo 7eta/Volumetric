@@ -637,9 +637,9 @@ def config_parser():
                         help='frequency of console printout and metric loggin')
     parser.add_argument("--i_img",     type=int, default=1000,
                         help='frequency of tensorboard image logging')
-    parser.add_argument("--i_weights", type=int, default=1000,
+    parser.add_argument("--i_weights", type=int, default=3000,
                         help='frequency of weight ckpt saving')
-    parser.add_argument("--i_testset", type=int, default=1000,
+    parser.add_argument("--i_testset", type=int, default=3000,
                         help='frequency of testset saving')
 
     parser.add_argument("--i_video",   type=int, default=1000,
@@ -1091,11 +1091,11 @@ def train():
             root_path = os.path.join(basedir, expname, 'mash_file')
             os.makedirs(root_path, exist_ok=True)
 
-            P_c2w = poses[i_train] #np.array(poses).astype(np.float32)
-            print(f"P_c2w type is : {type(P_c2w)}, shape is {P_c2w.shape}")
+            P_c2w = poses[i_train] #P_c2w type is : <class 'torch.Tensor'>, shape is torch.Size([64, 4, 4]) -> #np.array(poses).astype(np.float32)
+            # print(f"P_c2w type is : {type(P_c2w)}, shape is {P_c2w.shape}")
 
             with torch.no_grad():
-                _, _, _weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_train, videodir=videosavedir)
+                # _, _, _weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_train, videodir=videosavedir)
                 print(f"wieghts shape {_weights.shape}")
                 generate_and_write_mesh(global_step, bounding_box, target, P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
             print('Done, saving mesh at ', root_path)
