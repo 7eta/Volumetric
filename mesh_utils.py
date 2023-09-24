@@ -12,10 +12,14 @@ import time
 # 새로 추가
 import mcubes
 import open3d as o3d
+from run_nerf import render
 
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
     voxel_grid_origin,
+    target,
+    w2c,
+    hwf,
     volume_size,
     ply_filename_out,
     level=5.0,
@@ -31,6 +35,14 @@ def convert_sigma_samples_to_ply(
     """
     start_time = time.time()
     print(ply_filename_out)
+
+    P_w2c = w2c
+    H, W, focal = hwf
+    K = np.array([
+            [focal, 0, 0.5*W],
+            [0, focal, 0.5*H],
+            [0, 0, 1]
+        ])
 
     verts, faces, normals, values = skimage.measure.marching_cubes(
         input_3d_sigma_array, level=level, spacing=volume_size
@@ -88,6 +100,33 @@ def convert_sigma_samples_to_ply(
     vertices_ = np.asarray(mesh.vertices).astype(np.float32)
     triangles = np.asarray(mesh.triangles)
     N_vertices = len(vertices_)
+    vertices_homo = np.concatenate([vertices_, np.ones((N_vertices, 1))], 1) # (N, 4)
+
+
+    image = np.array(target)
+    ## project vertices from world coordinate to camera coordinate
+    vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back"
+    vertices_cam[1:] *= -1 # (3, N) in "right down forward"
+    ## project vertices from camera coordinate to pixel coordinate
+    vertices_image = (K @ vertices_cam).T # (N, 3)
+    depth = vertices_image[:, -1:]+1e-5 # the depth of the vertices, used as far plane
+    vertices_image = vertices_image[:, :2]/depth
+    vertices_image = vertices_image.astype(np.float32)
+    vertices_image[:, 0] = np.clip(vertices_image[:, 0], 0, W-1)
+    vertices_image[:, 1] = np.clip(vertices_image[:, 1], 0, H-1)    
+
+    colors = []
+    remap_chunk = int(3e4)
+    for i in range(0, N_vertices, remap_chunk):
+        colors += [cv2.remap(image[i], 
+                            vertices_image[i:i+remap_chunk, 0],
+                            vertices_image[i:i+remap_chunk, 1],
+                            interpolation=cv2.INTER_LINEAR)[:, 0]]
+    colors = np.vstack(colors) # (N_vertices, 3)
+    print(colors.shape)
+    time.sleep(60)
+
+
 
 
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
@@ -109,7 +148,7 @@ def convert_sigma_samples_to_ply(
     )
 
 
-def generate_and_write_mesh(i,bounding_box, num_pts, levels, chunk, device, ply_root, **render_kwargs):
+def generate_and_write_mesh(i,bounding_box, target, c2w, hwf, K, num_pts, levels, chunk, device, ply_root, **render_kwargs):
     """
     Generate density grid for marching cubes
     :bounding_box: bounding box for meshing 
@@ -117,6 +156,11 @@ def generate_and_write_mesh(i,bounding_box, num_pts, levels, chunk, device, ply_
     :levels: list of levels to write meshes for 
     :ply_root: string, path of the folder to save meshes to
     """
+    
+    P_c2w = c2w
+    P_w2c = np.linalg.inv(P_c2w)[:3] # (3, 4)
+    _hwf = hwf
+    _K = K
 
     near = render_kwargs['near']
     bb_min = (*(bounding_box[0] + near).cpu().numpy(),)
@@ -150,6 +194,6 @@ def generate_and_write_mesh(i,bounding_box, num_pts, levels, chunk, device, ply_
     for level in levels:
         try:
             sizes = (abs(bounding_box[1] - bounding_box[0]).cpu()).tolist()
-            convert_sigma_samples_to_ply(input_sigma_arr, list(bb_min), sizes, osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), level = level)
+            convert_sigma_samples_to_ply(input_sigma_arr, list(bb_min), target, P_w2c, _hwf, sizes, osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), level = level)
         except ValueError:
             print(f"Density field does not seem to have an isosurface at level {level} yet")

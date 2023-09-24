@@ -234,8 +234,6 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
         with open(os.path.join(savedir, "test_psnrs_avg{:0.2f}_ssim_avg{:0.4f}.pkl".format(avg_psnr,avg_ssim)), "wb") as fp:
             pickle.dump([psnrs,ssims], fp)
 
-    print(f"rgbs의 shape은{rgbs.shape}")
-
     return rgbs, depths
 
 
@@ -1090,8 +1088,10 @@ def train():
             root_path = os.path.join(basedir, expname, 'mash_file')
             os.makedirs(root_path, exist_ok=True)
 
+            P_c2w = np.array(poses[i_train])
+
             with torch.no_grad():
-                generate_and_write_mesh(global_step, bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+                generate_and_write_mesh(global_step, bounding_box, target, P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
             print('Done, saving mesh at ', root_path)
 
 
