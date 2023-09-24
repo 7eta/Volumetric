@@ -177,7 +177,7 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
         # normalize depth to [0,1]
         depth = (depth - near) / (far - near)
         depths.append(depth.cpu().numpy())
-        weights.append(weight.cpu().numpy().sum(1))
+        weights.append(weight.sum(1))
                 
         if i==0:
             print(rgb.shape, depth.shape)
