@@ -293,7 +293,7 @@ def convert_sigma_samples_to_ply(
     print(target[0])
 
     for idx in tqdm(range(len(target))):
-        image = np.array(target[idx])
+        image = target[idx]
         ## project vertices from world coordinate to camera coordinate
         vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back"
         vertices_cam[1:] *= -1 # (3, N) in "right down forward"
