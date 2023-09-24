@@ -144,7 +144,7 @@ def render(H, W, K, chunk=1024*32, rays=None, c2w=None, ndc=True,
         k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
         all_ret[k] = torch.reshape(all_ret[k], k_sh)
 
-    k_extract = ['rgb_map', 'depth_map', 'acc_map']
+    k_extract = ['rgb_map', 'depth_map', 'acc_map', 'weights']
     ret_list = [all_ret[k] for k in k_extract]
     ret_dict = {k : all_ret[k] for k in all_ret if k not in k_extract}
     return ret_list + [ret_dict]
@@ -171,7 +171,7 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
     for i, c2w in enumerate(tqdm(render_poses)):
         print(i, time.time() - t)
         t = time.time()
-        rgb, depth, acc, _ = render(H, W, K, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
+        rgb, depth, acc, weights, _ = render(H, W, K, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
         rgbs.append(rgb.cpu().numpy())
         # normalize depth to [0,1]
         depth = (depth - near) / (far - near)
@@ -504,7 +504,7 @@ def render_rays(ray_batch,
 
         rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 
-    ret = {'rgb_map' : rgb_map, 'depth_map' : depth_map, 'acc_map' : acc_map, 'sparsity_loss': sparsity_loss}
+    ret = {'rgb_map' : rgb_map, 'depth_map' : depth_map, 'acc_map' : acc_map, 'sparsity_loss': sparsity_loss, 'weights' : weights}
     if retraw:
         ret['raw'] = raw
     if N_importance > 0:
@@ -980,7 +980,7 @@ def train():
                 target_s = target[select_coords[:, 0], select_coords[:, 1]]  # (N_rand, 3)
 
         #####  Core optimization loop  #####
-        rgb, depth, acc, extras = render(H, W, K, chunk=args.chunk, rays=batch_rays,
+        rgb, depth, acc, weight, extras = render(H, W, K, chunk=args.chunk, rays=batch_rays,
                                                 verbose=i < 10, retraw=True,
                                                 **render_kwargs_train)
 
@@ -1091,7 +1091,7 @@ def train():
             P_c2w = poses[i_train] #np.array(poses).astype(np.float32)
 
             with torch.no_grad():
-                generate_and_write_mesh(global_step, bounding_box, target, P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+                generate_and_write_mesh(global_step, bounding_box, target, P_c2w, hwf, weights, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
             print('Done, saving mesh at ', root_path)
 
 

@@ -14,6 +14,9 @@ import mcubes
 import open3d as o3d
 import cv2
 
+# 필요 라이브러리
+from run_nerf import render
+
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
     voxel_grid_origin,
@@ -148,7 +151,7 @@ def convert_sigma_samples_to_ply(
     )
 
 
-def generate_and_write_mesh(i,bounding_box, target, c2w, hwf, K, num_pts, levels, chunk, device, ply_root, **render_kwargs):
+def generate_and_write_mesh(i,bounding_box, target, c2w, hwf, num_pts, levels, chunk, device, ply_root, **render_kwargs):
     """
     Generate density grid for marching cubes
     :bounding_box: bounding box for meshing 
@@ -160,7 +163,6 @@ def generate_and_write_mesh(i,bounding_box, target, c2w, hwf, K, num_pts, levels
     P_c2w = c2w
     P_w2c = np.linalg.inv(P_c2w)[:3] # (3, 4)
     _hwf = hwf
-    _K = K
 
     near = render_kwargs['near']
     bb_min = (*(bounding_box[0] + near).cpu().numpy(),)
