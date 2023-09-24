@@ -225,6 +225,7 @@ def convert_sigma_samples_to_ply(
     vertices_ = np.asarray(mesh.vertices).astype(np.float32)
     triangles = np.asarray(mesh.triangles)
     N_vertices = len(vertices_)
+    print(f"len(N_vertices) is {N_vertices}.")
     vertices_homo = np.concatenate([vertices_, np.ones((N_vertices, 1))], 1) # (N, 4)
 
     non_occluded_sum = np.zeros((N_vertices, 1))
