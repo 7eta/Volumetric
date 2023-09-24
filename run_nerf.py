@@ -956,6 +956,7 @@ def train():
             img_i = np.random.choice(i_train)
             target = images[img_i]
             target = torch.Tensor(target).to(device)
+            print(f"target shape : {target.shape} ")
             pose = poses[img_i, :3,:4]
 
             if N_rand is not None:
