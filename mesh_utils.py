@@ -9,6 +9,7 @@ import os.path as osp
 import skimage
 import time 
 
+
 # 새로 추가
 import mcubes
 import open3d as o3d
@@ -16,6 +17,7 @@ import cv2
 import torch.nn.functional as F
 from torch.distributions import Categorical
 import pdb
+from PIL import Image
 
 def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=False):
     """Transforms model's predictions to semantically meaningful values.
@@ -293,7 +295,9 @@ def convert_sigma_samples_to_ply(
     print(target[0])
 
     for idx in tqdm(range(len(target))):
-        image = target[idx]
+        image = Image.fromarray(target[idx])
+        image = image.resize((W, H), Image.LANCZOS)
+        image = np.array(image)
         ## project vertices from world coordinate to camera coordinate
         vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back"
         vertices_cam[1:] *= -1 # (3, N) in "right down forward"
