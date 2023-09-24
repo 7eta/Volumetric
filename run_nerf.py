@@ -228,6 +228,7 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
 
     rgbs = np.stack(rgbs, 0)
     depths = np.stack(depths, 0)
+    weights = np.stack(weights, 0)
     if gt_imgs is not None and render_factor==0:
         avg_psnr = sum(psnrs)/len(psnrs)
         avg_ssim = sum(ssims)/len(ssims)
@@ -1055,8 +1056,8 @@ def train():
             videosavedir = os.path.join(basedir, expname, 'video_frame_{:06d}'.format(i))
             # Turn on testing mode
             with torch.no_grad():
-                rgbs, disps, _ = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_test, videodir=videosavedir)
-            print('Done, saving', rgbs.shape, disps.shape)
+                rgbs, disps, _weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_test, videodir=videosavedir)
+            print('Done, saving', rgbs.shape, disps.shape, _weights.shape)
             moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
             imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=4)
             imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=4)
