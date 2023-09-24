@@ -200,6 +200,7 @@ def render_path(render_poses, hwf, K, chunk, render_kwargs):
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
     voxel_grid_origin,
+    device,
     target,
     poses,
     w2c,
@@ -337,7 +338,16 @@ def convert_sigma_samples_to_ply(
         z_vals = 1./(1./near * (1.-t_vals) + 1./far * (t_vals))
         z_vals = z_vals.expand([N_rays, N_vertices])
 
-        _, _, _, weights, _, _ = raw2outputs(render_kwargs['network_query_fn'], z_vals, rays_d)
+        pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None]
+
+        dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor).to(device)
+
+        nerf_model = render_kwargs['network_fine']
+        radiance_field = render_kwargs['network_query_fn']
+
+        raw = radiance_field(pts, dummy_viewdirs, nerf_model)
+
+        _, _, _, weights, _, _ = raw2outputs(raw, z_vals, rays_d)
         opacity = weights.sum(1)
         opacity = opacity.cpu().numpy()[:, np.newaxis]
         print(f"opacity's shape is {opacity.shape}")
@@ -415,6 +425,6 @@ def generate_and_write_mesh(i,bounding_box, poses, target, c2w, hwf, num_pts, le
     for level in levels:
         try:
             sizes = (abs(bounding_box[1] - bounding_box[0]).cpu()).tolist()
-            convert_sigma_samples_to_ply(input_sigma_arr, list(bb_min), target, poses, P_w2c, hwf, sizes, osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), level = level, **render_kwargs)
+            convert_sigma_samples_to_ply(input_sigma_arr, list(bb_min), device, target, poses, P_w2c, hwf, sizes, osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), level = level, **render_kwargs)
         except ValueError:
             print(f"Density field does not seem to have an isosurface at level {level} yet")
