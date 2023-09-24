@@ -292,10 +292,13 @@ def convert_sigma_samples_to_ply(
     non_occluded_sum = np.zeros((N_vertices, 1))
     v_color_sum = np.zeros((N_vertices, 3))
     print(f"type is {type(target)}")
-    print(target[0])
 
     for idx in tqdm(range(len(target))):
-        image = Image.fromarray(target[idx])
+        min_value = np.min(target[idx])
+        max_value = np.max(target[idx])
+        image_array = (target[idx] - min_value) / (max_value - min_value) * 255
+        image_array = image_array.astype(np.uint8)
+        image = Image.fromarray(image_array)
         image = image.resize((W, H), Image.LANCZOS)
         image = np.array(image)
         ## project vertices from world coordinate to camera coordinate
@@ -327,8 +330,18 @@ def convert_sigma_samples_to_ply(
         ## the far plane is the depth of the vertices, since what we want is the accumulated
         ## opacity along the path from camera origin to the vertices
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
+        rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
+        N_rays = rays.shape[0]
 
-        raw2outputs(render_kwargs['network_query_fn'], 1./(1./near * (1.-t_vals) + 1./far * (t_vals)), )
+        t_vals = torch.linspace(0., 1., steps=N_vertices)
+        z_vals = 1./(1./near * (1.-t_vals) + 1./far * (t_vals))
+        z_vals = z_vals.expand([N_rays, N_vertices])
+
+        _, _, _, weights, _, _ = raw2outputs(render_kwargs['network_query_fn'], z_vals, rays_d)
+        opacity = weights.sum(1)
+        opacity = opacity.cpu().numpy()[:, np.newaxis]
+        print(f"opacity's shape is {opacity.shape}")
+        opacity = np.nan_to_num(opacity, 1)
 
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
         non_occluded += opacity < 0.2
