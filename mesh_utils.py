@@ -14,8 +14,6 @@ import mcubes
 import open3d as o3d
 import cv2
 
-# 필요 라이브러리
-from run_nerf import render
 
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
@@ -105,29 +103,39 @@ def convert_sigma_samples_to_ply(
     N_vertices = len(vertices_)
     vertices_homo = np.concatenate([vertices_, np.ones((N_vertices, 1))], 1) # (N, 4)
 
+    non_occluded_sum = np.zeros((N_vertices, 1))
+    v_color_sum = np.zeros((N_vertices, 3))
 
-    image = np.array(target)
-    ## project vertices from world coordinate to camera coordinate
-    vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back"
-    vertices_cam[1:] *= -1 # (3, N) in "right down forward"
-    ## project vertices from camera coordinate to pixel coordinate
-    vertices_image = (K @ vertices_cam).T # (N, 3)
-    depth = vertices_image[:, -1:]+1e-5 # the depth of the vertices, used as far plane
-    vertices_image = vertices_image[:, :2]/depth
-    vertices_image = vertices_image.astype(np.float32)
-    vertices_image[:, 0] = np.clip(vertices_image[:, 0], 0, W-1)
-    vertices_image[:, 1] = np.clip(vertices_image[:, 1], 0, H-1)    
+    for idx in tqdm(range(len(target))):
+        image = np.array(target[idx])
+        ## project vertices from world coordinate to camera coordinate
+        vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back"
+        vertices_cam[1:] *= -1 # (3, N) in "right down forward"
+        ## project vertices from camera coordinate to pixel coordinate
+        vertices_image = (K @ vertices_cam).T # (N, 3)
+        depth = vertices_image[:, -1:]+1e-5 # the depth of the vertices, used as far plane
+        vertices_image = vertices_image[:, :2]/depth
+        vertices_image = vertices_image.astype(np.float32)
+        vertices_image[:, 0] = np.clip(vertices_image[:, 0], 0, W-1)
+        vertices_image[:, 1] = np.clip(vertices_image[:, 1], 0, H-1)    
 
-    colors = []
-    remap_chunk = int(3e4)
-    for i in range(0, N_vertices, remap_chunk):
-        colors += [cv2.remap(image[i], 
-                            vertices_image[i:i+remap_chunk, 0],
-                            vertices_image[i:i+remap_chunk, 1],
-                            interpolation=cv2.INTER_LINEAR)[:, 0]]
-    colors = np.vstack(colors) # (N_vertices, 3)
-    print(colors.shape)
-    time.sleep(60)
+        colors = []
+        remap_chunk = int(3e4)
+        for i in range(0, N_vertices, remap_chunk):
+            colors += [cv2.remap(image[i], 
+                                vertices_image[i:i+remap_chunk, 0],
+                                vertices_image[i:i+remap_chunk, 1],
+                                interpolation=cv2.INTER_LINEAR)[:, 0]]
+        colors = np.vstack(colors) # (N_vertices, 3)
+        print(colors.shape)
+        time.sleep(60)
+
+        non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
+        non_occluded += opacity < 0.2
+
+        v_color_sum += colors * non_occluded
+        non_occluded_sum += non_occluded
+
 
 
 
