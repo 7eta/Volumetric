@@ -292,7 +292,7 @@ def generate_and_write_mesh(i,bounding_box, target, c2w, hwf, num_pts, levels, c
     """
     
     P_c2w = c2w
-    P_w2c = np.linalg.inv(P_c2w)[:3] # (3, 4)
+    P_w2c = np.linalg.inv(P_c2w.cpu().numpy())[:3] # (3, 4)
     _hwf = hwf
 
     near = render_kwargs['near']
