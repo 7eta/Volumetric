@@ -753,7 +753,7 @@ def train():
              print(f"colmap return은 {colmap.run(args.video_in)}")
         images, poses, render_poses, hwf, i_split, bounding_box = load_own_data(args.datadir, args.half_res, args.testskip)
         args.bounding_box = bounding_box
-        print('Loaded blender', images.shape, render_poses.shape, hwf, args.datadir)
+        print('Loaded own data', images.shape, render_poses.shape, hwf, args.datadir)
         i_train, i_val, i_test = i_split
 
         near = 2.
@@ -1092,6 +1092,7 @@ def train():
             os.makedirs(root_path, exist_ok=True)
 
             P_c2w = poses[i_train] #np.array(poses).astype(np.float32)
+            print(f"P_c2w type is : {type(P_c2w)}, shape is {P_c2w.shape}")
 
             with torch.no_grad():
                 _, _, _weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_train, videodir=videosavedir)
