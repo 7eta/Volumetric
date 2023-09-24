@@ -874,7 +874,7 @@ def train():
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', render_poses.shape)
 
-            rgbs, _ = render_path(global_step, render_poses, hwf, K, args.chunk, render_kwargs_test, gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
+            rgbs, _, _= render_path(global_step, render_poses, hwf, K, args.chunk, render_kwargs_test, gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
             print('Done rendering', testsavedir)
             imageio.mimwrite(os.path.join(testsavedir, 'video.mp4'), to8b(rgbs), fps=30, quality=8)
 
@@ -1055,7 +1055,7 @@ def train():
             videosavedir = os.path.join(basedir, expname, 'video_frame_{:06d}'.format(i))
             # Turn on testing mode
             with torch.no_grad():
-                rgbs, disps = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_test, videodir=videosavedir)
+                rgbs, disps, _ = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_test, videodir=videosavedir)
             print('Done, saving', rgbs.shape, disps.shape)
             moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
             imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=4)
@@ -1093,7 +1093,8 @@ def train():
             P_c2w = poses[i_train] #np.array(poses).astype(np.float32)
 
             with torch.no_grad():
-                _, _, weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_train, videodir=videosavedir)
+                _, _, _weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_train, videodir=videosavedir)
+                print(f"wieghts shape {_weights.shape}")
                 generate_and_write_mesh(global_step, bounding_box, target, P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
             print('Done, saving mesh at ', root_path)
 
