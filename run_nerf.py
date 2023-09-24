@@ -1088,7 +1088,7 @@ def train():
             root_path = os.path.join(basedir, expname, 'mash_file')
             os.makedirs(root_path, exist_ok=True)
 
-            P_c2w = np.array(poses[i_train])
+            P_c2w = poses[i_train] #np.array(poses).astype(np.float32)
 
             with torch.no_grad():
                 generate_and_write_mesh(global_step, bounding_box, target, P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
