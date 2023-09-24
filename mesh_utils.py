@@ -13,6 +13,62 @@ import time
 import mcubes
 import open3d as o3d
 import cv2
+import torch.nn.functional as F
+from torch.distributions import Categorical
+import pdb
+
+def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=False):
+    """Transforms model's predictions to semantically meaningful values.
+    Args:
+        raw: [num_rays, num_samples along ray, 4]. Prediction from model.
+        z_vals: [num_rays, num_samples along ray]. Integration time.
+        rays_d: [num_rays, 3]. Direction of each ray.
+    Returns:
+        rgb_map: [num_rays, 3]. Estimated RGB color of a ray.
+        disp_map: [num_rays]. Disparity map. Inverse of depth map.
+        acc_map: [num_rays]. Sum of weights along each ray.
+        weights: [num_rays, num_samples]. Weights assigned to each sampled color.
+        depth_map: [num_rays]. Estimated distance to object.
+    """
+    raw2alpha = lambda raw, dists, act_fn=F.relu: 1.-torch.exp(-act_fn(raw)*dists)
+
+    dists = z_vals[...,1:] - z_vals[...,:-1]
+    dists = torch.cat([dists, torch.Tensor([1e10]).expand(dists[...,:1].shape)], -1)  # [N_rays, N_samples]
+
+    dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
+
+    rgb = torch.sigmoid(raw[...,:3])  # [N_rays, N_samples, 3]
+    noise = 0.
+    if raw_noise_std > 0.:
+        noise = torch.randn(raw[...,3].shape) * raw_noise_std
+
+        # Overwrite randomly sampled data if pytest
+        if pytest:
+            np.random.seed(0)
+            noise = np.random.rand(*list(raw[...,3].shape)) * raw_noise_std
+            noise = torch.Tensor(noise)
+
+    # sigma_loss = sigma_sparsity_loss(raw[...,3])
+    alpha = raw2alpha(raw[...,3] + noise, dists)  # [N_rays, N_samples]
+    # weights = alpha * tf.math.cumprod(1.-alpha + 1e-10, -1, exclusive=True)
+    weights = alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
+    rgb_map = torch.sum(weights[...,None] * rgb, -2)  # [N_rays, 3]
+
+    depth_map = torch.sum(weights * z_vals, -1) / torch.sum(weights, -1)
+    disp_map = 1./torch.max(1e-10 * torch.ones_like(depth_map), depth_map)
+    acc_map = torch.sum(weights, -1)
+
+    if white_bkgd:
+        rgb_map = rgb_map + (1.-acc_map[...,None])
+
+    # Calculate weights sparsity loss
+    try:
+        entropy = Categorical(probs = torch.cat([weights, 1.0-weights.sum(-1, keepdim=True)+1e-6], dim=-1)).entropy()
+    except:
+        pdb.set_trace()
+    sparsity_loss = entropy
+
+    return rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss
 
 def render_rays(ray_batch,
                 network_fn,
@@ -143,13 +199,15 @@ def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
     voxel_grid_origin,
     target,
+    poses,
     w2c,
     hwf,
     volume_size,
     ply_filename_out,
     level=5.0,
     offset=None,
-    scale=None,):
+    scale=None,
+    **render_kwargs):
     """
     Convert density samples to .ply
     :param input_3d_sdf_array: a float array of shape (n,n,n)
@@ -227,6 +285,7 @@ def convert_sigma_samples_to_ply(
     N_vertices = len(vertices_)
     print(f"len(N_vertices) is {N_vertices}.")
     vertices_homo = np.concatenate([vertices_, np.ones((N_vertices, 1))], 1) # (N, 4)
+    print(f"target shape is{target.shape}")
 
     non_occluded_sum = np.zeros((N_vertices, 1))
     v_color_sum = np.zeros((N_vertices, 3))
@@ -253,6 +312,17 @@ def convert_sigma_samples_to_ply(
                                 interpolation=cv2.INTER_LINEAR)[:, 0]]
         colors = np.vstack(colors) # (N_vertices, 3)
         print(colors.shape)
+
+        rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
+        ## ray's direction is the vector pointing from camera origin to the vertices
+        rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
+        rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
+        near = np.array([2.0, 6.0]).min() * torch.ones_like(rays_o[:, :1])
+        ## the far plane is the depth of the vertices, since what we want is the accumulated
+        ## opacity along the path from camera origin to the vertices
+        far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
+
+        raw2outputs(render_kwargs['network_query_fn'], 1./(1./near * (1.-t_vals) + 1./far * (t_vals)), )
 
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
         non_occluded += opacity < 0.2
@@ -283,7 +353,7 @@ def convert_sigma_samples_to_ply(
     )
 
 
-def generate_and_write_mesh(i,bounding_box, target, c2w, hwf, num_pts, levels, chunk, device, ply_root, **render_kwargs):
+def generate_and_write_mesh(i,bounding_box, poses, target, c2w, hwf, num_pts, levels, chunk, device, ply_root, **render_kwargs):
     """
     Generate density grid for marching cubes
     :bounding_box: bounding box for meshing 
@@ -326,6 +396,6 @@ def generate_and_write_mesh(i,bounding_box, target, c2w, hwf, num_pts, levels, c
     for level in levels:
         try:
             sizes = (abs(bounding_box[1] - bounding_box[0]).cpu()).tolist()
-            convert_sigma_samples_to_ply(input_sigma_arr, list(bb_min), target, P_w2c, hwf, sizes, osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), level = level)
+            convert_sigma_samples_to_ply(input_sigma_arr, list(bb_min), target, poses, P_w2c, hwf, sizes, osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), level = level, **render_kwargs)
         except ValueError:
             print(f"Density field does not seem to have an isosurface at level {level} yet")

@@ -506,7 +506,7 @@ def render_rays(ray_batch,
         raw = network_query_fn(pts, viewdirs, run_fn)
 
         rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
-        print(f"render_rays's weights shape {weights.shape}, weights.sum is {weights.sum(1).shape}, type(weights.sum) is {type(weights.sum(1))}")
+        # print(f"render_rays's weights shape {weights.shape}, weights.sum is {weights.sum(1).shape}, type(weights.sum) is {type(weights.sum(1))}")
 
     ret = {'rgb_map' : rgb_map, 'depth_map' : depth_map, 'acc_map' : acc_map, 'sparsity_loss': sparsity_loss, 'weight' : weights.sum(1)}
     if retraw:
@@ -1100,7 +1100,7 @@ def train():
             with torch.no_grad():
                 # _, _, _weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_train, videodir=videosavedir)
                 print(f"weights shape {_weights.shape}")
-                generate_and_write_mesh(global_step, bounding_box, images[i_train], P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+                generate_and_write_mesh(global_step, bounding_box, poses[i_train], images[i_train], P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
             print('Done, saving mesh at ', root_path)
 
 
