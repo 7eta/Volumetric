@@ -934,7 +934,7 @@ def train():
     time_list = []
     metrics_list = []
 
-    print(f"images.shape : {images[i_train].shape}\n images.type : {images[i_train].type}\n images.len : {len(images[i_train])}")
+    print(f"images.shape : {images[i_train].shape}\n images.type : {type(images[i_train])}\n images.len : {len(images[i_train])}")
     
     start = start + 1
     time0 = time.time()
