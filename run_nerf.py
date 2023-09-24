@@ -354,8 +354,6 @@ def create_nerf(args):
     render_kwargs_test['perturb'] = False
     render_kwargs_test['raw_noise_std'] = 0.
 
-    print(render_kwargs_test)
-
     return render_kwargs_train, render_kwargs_test, start, grad_vars, optimizer
 
 
@@ -935,6 +933,8 @@ def train():
     psnr_list = []
     time_list = []
     metrics_list = []
+
+    print(images[i_train].shape)
     
     start = start + 1
     time0 = time.time()
@@ -1099,7 +1099,7 @@ def train():
             with torch.no_grad():
                 # _, _, _weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_train, videodir=videosavedir)
                 print(f"wieghts shape {_weights.shape}")
-                generate_and_write_mesh(global_step, bounding_box, target, P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+                generate_and_write_mesh(global_step, bounding_box, images[i_train], P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
             print('Done, saving mesh at ', root_path)
 
 
