@@ -12,7 +12,7 @@ import time
 # 새로 추가
 import mcubes
 import open3d as o3d
-from run_nerf import render
+import cv2
 
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
