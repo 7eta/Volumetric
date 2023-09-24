@@ -354,6 +354,8 @@ def create_nerf(args):
     render_kwargs_test['perturb'] = False
     render_kwargs_test['raw_noise_std'] = 0.
 
+    print(render_kwargs_test)
+
     return render_kwargs_train, render_kwargs_test, start, grad_vars, optimizer
 
 
@@ -956,7 +958,6 @@ def train():
             img_i = np.random.choice(i_train)
             target = images[img_i]
             target = torch.Tensor(target).to(device)
-            print(f"target shape : {target.shape} ")
             pose = poses[img_i, :3,:4]
 
             if N_rand is not None:
