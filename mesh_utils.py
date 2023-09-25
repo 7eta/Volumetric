@@ -332,7 +332,7 @@ def convert_sigma_samples_to_ply(
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
         N_rays = rays.shape[0]
-        print(f"near shape : {near.shape}, near : {near}\n far shape : {far.shape}, far : {far} \n N_rays.shape : {N_rays.shape}, N_rays : {N_rays}")
+        print(f"near shape : {near.shape}, near : {near}\n far shape : {far.shape}, far : {far} \n rays.shape : {rays.shape} rays : {rays}")
 
         t_vals = torch.linspace(0., 1., steps=N_vertices)
         print(f"rays_o shape : {rays_o.shape} , rays_d shape : {rays_d.shape}, \n t_vals shape : {t_vals}, t_vals : {t_vals}")
