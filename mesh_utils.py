@@ -366,10 +366,10 @@ def convert_sigma_samples_to_ply(
         _far = far.cuda()
         rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
         N_rays = rays.shape[0]
-        print(f"near shape : {near.shape}, near : {near}\n far shape : {far.shape}, far : {far} \n rays.shape : {rays.shape} rays : {rays}")
+        # print(f"near shape : {near.shape}, near : {near}\n far shape : {far.shape}, far : {far} \n rays.shape : {rays.shape} rays : {rays}")
 
         t_vals = torch.linspace(0., 1., steps=N_vertices, device=rays.device)
-        print(f"rays_o shape : {rays_o.shape} , rays_d shape : {rays_d.shape}, \n t_vals shape : {t_vals}, t_vals : {t_vals}")
+        # print(f"rays_o shape : {rays_o.shape} , rays_d shape : {rays_d.shape}, \n t_vals shape : {t_vals}, t_vals : {t_vals}")
         z_vals = 1./(1./_near * (1.-t_vals) + 1./_far * (t_vals))
         z_vals = z_vals.expand([N_rays, N_vertices])
 
@@ -382,7 +382,7 @@ def convert_sigma_samples_to_ply(
         print(f"dummy_viewdirs shape : {dummy_viewdirs.shape}")
 
         sh = rays_d.shape # [..., 3]->확인필요
-        print(f"### sh.shape : {sh.shape}")
+        print(f"### sh.shape : {sh}")
         all_ret = batchify_rays(rays, 1024*32, **render_kwargs)
         for k in all_ret:
             k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
