@@ -274,12 +274,11 @@ def render(H, W, K, chunk=1024*32, rays=None, c2w=None, ndc=True,
     ret_dict = {k : all_ret[k] for k in all_ret if k not in k_extract}
     return ret_list + [ret_dict]
 
-@torch.no_grad()
 def batchify_rays(rays_flat, chunk=32*1024, **kwargs):
     """Render rays in smaller minibatches to avoid OOM.
     """
     all_ret = {}
-    for i in range(0, rays_flat.shape[0]*1000, chunk):
+    for i in range(0, rays_flat.shape[0], chunk):
         ret = render_rays(rays_flat[i:i+chunk], **kwargs)
         for k in ret:
             if k not in all_ret:
@@ -429,23 +428,9 @@ def convert_sigma_samples_to_ply(
         
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
-        all_ret = batchify_rays(rays, N_vertices, **render_kwargs)
-        for k in all_ret:
-            k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
-            all_ret[k] = torch.reshape(all_ret[k], k_sh)
-
-        k_extract = ['rgb_map', 'depth_map', 'acc_map', 'weight']
-        ret_list = [all_ret[k] for k in k_extract]  
-
-        print(f"ret_list : {ret_list}")
-
-        opacity = ret_list['weight'].sum(1)
-        opacity = opacity.cpu().numpy()[:, np.newaxis]
-        print(f"opacity's shape is {opacity.shape}")
-        opacity = np.nan_to_num(opacity, 1)
 
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
-        non_occluded += opacity < 0.2
+        # non_occluded += opacity < 0.2
 
         v_color_sum += colors * non_occluded
         non_occluded_sum += non_occluded
