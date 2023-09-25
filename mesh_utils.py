@@ -345,16 +345,17 @@ def convert_sigma_samples_to_ply(
         
 
         pts = rays_o[...,None,:].to('cuda:0') + rays_d[...,None,:].to('cuda:0') * z_vals[...,:,None].to('cuda:0')
+        print(f"pts shape : {pts.shape}")
 
         dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor).to(device)
+        print(f"dummy_viewdirs shape : {dummy_viewdirs.shape}")
 
-        nerf_model = render_kwargs['network_fine']
-        radiance_field = render_kwargs['network_query_fn']
 
-        raw = radiance_field(pts, dummy_viewdirs, nerf_model)
+        _, _, _, weight, _ = render(H, W, K, chunk=1024*32, rays=rays,
+                                                verbose=False, retraw=True,
+                                                **render_kwargs)
 
-        _, _, _, weights, _, _ = raw2outputs(raw, z_vals, rays_d)
-        opacity = weights.sum(1)
+        opacity = weight.sum(1)
         opacity = opacity.cpu().numpy()[:, np.newaxis]
         print(f"opacity's shape is {opacity.shape}")
         opacity = np.nan_to_num(opacity, 1)
