@@ -150,8 +150,8 @@ def render_rays(ray_batch,
     print(f"@@@@ pts shape : {pts.shape}")
     @@@@ pts shape : torch.Size([9478, 64, 3])
     '''
-
-    raw = network_query_fn(pts, viewdirs, network_fn)
+    print(f"@@@ netwrok_fn : {type(network_fine)}")
+    raw = network_query_fn(pts, viewdirs, network_fine)
     rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 
     if N_importance > 0:

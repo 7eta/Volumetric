@@ -79,7 +79,6 @@ def batchify_rays(rays_flat, chunk=1024*32, **kwargs):
             all_ret[k].append(ret[k])
 
     all_ret = {k : torch.cat(all_ret[k], 0) for k in all_ret}
-    print(f"batchify's all_ret : {all_ret}")
     return all_ret
 
 
@@ -512,7 +511,7 @@ def render_rays(ray_batch,
     pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None] # [N_rays, N_samples, 3]
 
     raw = network_query_fn(pts, viewdirs, network_fn)
-    print(f"@@@ network_fn : {type(network_fn)}")
+    # print(f"@@@ network_fn : {type(network_fn)}") # @@@ network_fn : <class 'run_nerf_helpers.NeRFSmall'>
     rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 
     if N_importance > 0:
