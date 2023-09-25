@@ -381,14 +381,19 @@ def convert_sigma_samples_to_ply(
         dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor).to(device)
         print(f"dummy_viewdirs shape : {dummy_viewdirs.shape}")
 
+        sh = rays_d.shape # [..., 3]->확인필요
+        print(f"### sh.shape : {sh.shape}")
+        all_ret = batchify_rays(rays, 1024*32, **render_kwargs)
+        for k in all_ret:
+            k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
+            all_ret[k] = torch.reshape(all_ret[k], k_sh)
 
-        _, _, _, weight, _ = render(H, W, K, chunk=1024*32, rays=rays, c2w=P_c2w,
-                                                verbose=False, retraw=True,
-                                                **render_kwargs)
+        k_extract = ['rgb_map', 'depth_map', 'acc_map', 'weight']
+        ret_list = [all_ret[k] for k in k_extract]  
 
-        print(f"weight shape : {weight.shape}")
+        print(f"ret_list : {ret_list}")
 
-        opacity = weight.sum(1)
+        opacity = ret_list['weight'].sum(1)
         opacity = opacity.cpu().numpy()[:, np.newaxis]
         print(f"opacity's shape is {opacity.shape}")
         opacity = np.nan_to_num(opacity, 1)
