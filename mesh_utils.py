@@ -22,7 +22,7 @@ from run_nerf_helpers import *
 
 DEBUG = False
 
-def render_path(poses, hwf, K, chunk, render_kwargs, render_factor=0):
+def render_path(poses, hwf, K, rays, chunk, render_kwargs, render_factor=0):
     H, W, focal = hwf
     near, far = render_kwargs['near'], render_kwargs['far']
 
@@ -34,7 +34,7 @@ def render_path(poses, hwf, K, chunk, render_kwargs, render_factor=0):
 
     weights = []
     for i, c2w in enumerate(tqdm(poses)):
-        _, _, _, weight, _ = render(H, W, K, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
+        _, _, _, weight, _ = render(H, W, K, chunk=chunk, rays=rays, c2w=c2w[:3,:4], **render_kwargs)
         weights.append(weight.cpu().numpy())
 
     weights = np.stack(weights, 0)
@@ -132,7 +132,6 @@ def render_rays(ray_batch,
     }
     '''    
 
-
     N_rays = ray_batch.shape[0]
     rays_o, rays_d = ray_batch[:,0:3], ray_batch[:,3:6] # [N_rays, 3] each
     viewdirs = ray_batch[:,-3:] if ray_batch.shape[-1] > 8 else None
@@ -211,57 +210,6 @@ def render(H, W, K, chunk=1024*32, rays=None, c2w=None, ndc=True,
                   near=0., far=1.,
                   use_viewdirs=False, c2w_staticcam=None,
                   **kwargs):
-    """Render rays
-    Args:
-      H: int. Height of image in pixels.
-      W: int. Width of image in pixels.
-      focal: float. Focal length of pinhole camera.
-      chunk: int. Maximum number of rays to process simultaneously. Used to
-        control maximum memory usage. Does not affect final results.
-      rays: array of shape [2, batch_size, 3]. Ray origin and direction for
-        each example in batch.
-      c2w: array of shape [3, 4]. Camera-to-world transformation matrix.
-      ndc: bool. If True, represent ray origin, direction in NDC coordinates.
-      near: float or array of shape [batch_size]. Nearest distance for a ray.
-      far: float or array of shape [batch_size]. Farthest distance for a ray.
-      use_viewdirs: bool. If True, use viewing direction of a point in space in model.
-      c2w_staticcam: array of shape [3, 4]. If not None, use this transformation matrix for
-       camera while using other c2w argument for viewing directions.
-    Returns:
-      rgb_map: [batch_size, 3]. Predicted RGB values for rays.
-      disp_map: [batch_size]. Disparity map. Inverse of depth.
-      acc_map: [batch_size]. Accumulated opacity (alpha) along a ray.
-      extras: dict with everything returned by render_rays().
-    """
-    if c2w is not None:
-        # special case to render full image
-        rays_o, rays_d = get_rays(H, W, K, c2w)
-    else:
-        # use provided ray batch
-        rays_o, rays_d = rays
-
-    if use_viewdirs:
-        # provide ray directions as input
-        viewdirs = rays_d
-        if c2w_staticcam is not None:
-            # special case to visualize effect of viewdirs
-            rays_o, rays_d = get_rays(H, W, K, c2w_staticcam)
-        viewdirs = viewdirs / torch.norm(viewdirs, dim=-1, keepdim=True)
-        viewdirs = torch.reshape(viewdirs, [-1,3]).float()
-
-    sh = rays_d.shape # [..., 3]
-    if ndc:
-        # for forward facing scenes
-        rays_o, rays_d = ndc_rays(H, W, K[0][0], 1., rays_o, rays_d)
-
-    # Create ray batch
-    rays_o = torch.reshape(rays_o, [-1,3]).float()
-    rays_d = torch.reshape(rays_d, [-1,3]).float()
-
-    near, far = near * torch.ones_like(rays_d[...,:1]), far * torch.ones_like(rays_d[...,:1])
-    rays = torch.cat([rays_o, rays_d, near, far], -1)
-    if use_viewdirs:
-        rays = torch.cat([rays, viewdirs], -1)
 
     # Render and reshape
     all_ret = batchify_rays(rays, chunk, **kwargs)
@@ -432,7 +380,7 @@ def convert_sigma_samples_to_ply(
         # print(f"### sh.shape : {sh}")
 
         with torch.no_grad():
-            _, _, weights = render_path(poses[idx], hwf, K, chunk=1024*32, **render_kwargs)
+            _, _, weights = render_path(poses[idx], hwf, K, rays, chunk=1024*32, **render_kwargs)
 
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
         # non_occluded += opacity < 0.2
