@@ -171,63 +171,6 @@ def batchify_rays(rays_flat, chunk=1024*32, **kwargs):
     all_ret = {k : torch.cat(all_ret[k], 0) for k in all_ret}
     return all_ret
 
-def render(H, W, K, chunk=1024*32, rays=None, c2w=None, ndc=True,
-                  near=0., far=1.,
-                  use_viewdirs=False, c2w_staticcam=None,
-                  **kwargs):
-    
-    if c2w is not None:
-        # special case to render full image
-        rays_o, rays_d = get_rays(H, W, K, c2w)
-    else:
-        # use provided ray batch
-        rays_o, rays_d = rays
-
-    if use_viewdirs:
-        # provide ray directions as input
-        viewdirs = rays_d
-        if c2w_staticcam is not None:
-            # special case to visualize effect of viewdirs
-            rays_o, rays_d = get_rays(H, W, K, c2w_staticcam)
-        viewdirs = viewdirs / torch.norm(viewdirs, dim=-1, keepdim=True)
-        viewdirs = torch.reshape(viewdirs, [-1,3]).float()
-
-    sh = rays_d.shape # [..., 3]
-    if ndc:
-        # for forward facing scenes
-        rays_o, rays_d = ndc_rays(H, W, K[0][0], 1., rays_o, rays_d)
-
-    # Create ray batch
-    rays_o = torch.reshape(rays_o, [-1,3]).float()
-    rays_d = torch.reshape(rays_d, [-1,3]).float()
-
-    near, far = near * torch.ones_like(rays_d[...,:1]), far * torch.ones_like(rays_d[...,:1])
-    rays = torch.cat([rays_o, rays_d, near, far], -1)
-    if use_viewdirs:
-        rays = torch.cat([rays, viewdirs], -1)
-
-    # Render and reshape
-    all_ret = batchify_rays(rays, chunk, **kwargs)
-    for k in all_ret:
-        k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
-        all_ret[k] = torch.reshape(all_ret[k], k_sh)
-
-    k_extract = ['rgb_map', 'depth_map', 'acc_map', 'weight']
-    ret_list = [all_ret[k] for k in k_extract]
-    ret_dict = {k : all_ret[k] for k in all_ret if k not in k_extract}
-    return ret_list + [ret_dict]
-
-def render_path(render_poses, hwf, K, chunk, render_kwargs):
-    H, W, focal = hwf
-    near, far = render_kwargs['near'], render_kwargs['far']
-
-    weights = []
-    for i, c2w in enumerate(tqdm(render_poses)):
-        _, _, _, weight, _ = render(H, W, K, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
-        weights.append(weight.cpu().numpy())
-    
-    return weights
-
 
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
@@ -404,14 +347,15 @@ def convert_sigma_samples_to_ply(
         v_color_sum += colors * non_occluded
         non_occluded_sum += non_occluded
 
-
-
-
-
+    v_colors = v_color_sum/non_occluded_sum
+    v_colors = v_colors.astype(np.uint8)
+    v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
-    vertex_all = np.empty(N_vertices, vertices_.dtype.descr)
+    vertex_all = np.empty(N_vertices, vertices_.dtype.descr+v_colors.dtype.descr)
     for prop in vertices_.dtype.names:
         vertex_all[prop] = vertices_[prop][:,0]
+    for prop in v_colors.dtype.names:
+        vertex_all[prop] = v_colors[prop][:, 0]
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = triangles
     _el_verts = plyfile.PlyElement.describe(vertex_all, "vertex")
