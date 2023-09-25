@@ -394,6 +394,9 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
     weights = alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
     rgb_map = torch.sum(weights[...,None] * rgb, -2)  # [N_rays, 3]
 
+    print(f"!!!!!!!!\
+          weights shape {weights.shape}") # [N_rays, N_samples]
+
     depth_map = torch.sum(weights * z_vals, -1) / torch.sum(weights, -1)
     disp_map = 1./torch.max(1e-10 * torch.ones_like(depth_map), depth_map)
     acc_map = torch.sum(weights, -1)
