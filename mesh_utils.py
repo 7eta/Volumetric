@@ -114,8 +114,6 @@ def render_rays(ray_batch,
     }
     '''    
 
-    nerf_model = network_fn['network_fine']
-
 
     N_rays = ray_batch.shape[0]
     rays_o, rays_d = ray_batch[:,0:3], ray_batch[:,3:6] # [N_rays, 3] each
@@ -153,7 +151,7 @@ def render_rays(ray_batch,
     @@@@ pts shape : torch.Size([9478, 64, 3])
     '''
 
-    raw = network_query_fn(pts, viewdirs, nerf_model)
+    raw = network_query_fn(pts, viewdirs, network_fn)
     rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 
     if N_importance > 0:
