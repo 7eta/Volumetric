@@ -302,7 +302,7 @@ def convert_sigma_samples_to_ply(
         P_w2c = np.linalg.inv(P_c2w)[:3] # (3, 4)
         ## project vertices from world coordinate to camera coordinate
         vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back" 
-        print(f"@@vertices_cam shape : {vertices_cam.shape}") # (3, 4, 250) ->
+        print(f"@@vertices_cam shape : {vertices_cam.shape}") # (3, 4, 250) -> (3, 9482)
         vertices_cam[1:] *= -1 # (3, N) in "right down forward"
         ## project vertices from camera coordinate to pixel coordinate
         vertices_image = (K @ vertices_cam).T # (N, 3)
@@ -315,12 +315,12 @@ def convert_sigma_samples_to_ply(
         colors = []
         remap_chunk = int(3e4)
         for i in range(0, N_vertices, remap_chunk):
-            colors += [cv2.remap(image[i], 
+            colors += [cv2.remap(image, 
                                 vertices_image[i:i+remap_chunk, 0],
                                 vertices_image[i:i+remap_chunk, 1],
                                 interpolation=cv2.INTER_LINEAR)[:, 0]]
         colors = np.vstack(colors) # (N_vertices, 3)
-        print(colors.shape)
+        print(f"colors shape : {colors.shape}")
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
@@ -332,8 +332,10 @@ def convert_sigma_samples_to_ply(
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
         N_rays = rays.shape[0]
+        print(f"near shape : {near.shape}, near : {near}\n far shape : {far.shape}, far : {far} \n N_rays.shape : {N_rays.shape}, N_rays : {N_rays}")
 
         t_vals = torch.linspace(0., 1., steps=N_vertices)
+        print(f"rays_o shape : {rays_o.shape} , rays_d shape : {rays_d.shape}, \n t_vals shape : {t_vals}, t_vals : {t_vals}")
         z_vals = 1./(1./near * (1.-t_vals) + 1./far * (t_vals))
         z_vals = z_vals.expand([N_rays, N_vertices])
 
