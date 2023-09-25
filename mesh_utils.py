@@ -203,7 +203,6 @@ def convert_sigma_samples_to_ply(
     device,
     imgs_path,
     poses,
-    w2c,
     hwf,
     volume_size,
     ply_filename_out,
@@ -386,7 +385,6 @@ def generate_and_write_mesh(i,
                             bounding_box, 
                             poses, 
                             imgs_path, 
-                            c2w, 
                             hwf, 
                             num_pts, 
                             levels, 
@@ -401,8 +399,6 @@ def generate_and_write_mesh(i,
     :levels: list of levels to write meshes for 
     :ply_root: string, path of the folder to save meshes to
     """
-    
-    P_w2c = np.linalg.inv(c2w.cpu().numpy().astype(np.float32))[:3] # (3, 4)
 
     near = render_kwargs['near']
     bb_min = (*(bounding_box[0] + near).cpu().numpy(),)
@@ -436,6 +432,6 @@ def generate_and_write_mesh(i,
     for level in levels:
         try:
             sizes = (abs(bounding_box[1] - bounding_box[0]).cpu()).tolist()
-            convert_sigma_samples_to_ply(input_sigma_arr, list(bb_min), device, imgs_path, poses, P_w2c, hwf, sizes, osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), level = level, **render_kwargs)
+            convert_sigma_samples_to_ply(input_sigma_arr, list(bb_min), device, imgs_path, poses, hwf, sizes, osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), level = level, **render_kwargs)
         except ValueError:
             print(f"Density field does not seem to have an isosurface at level {level} yet")

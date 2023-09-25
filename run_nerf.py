@@ -1032,8 +1032,8 @@ def train():
         ################################
         #print(f"@@@ i_train.shape : {i_train.shape}")
         #print(f"@@@ poses.shape : {poses[i_train].cpu().numpy().shape}, type(poses) : {type(poses[i_train].cpu().numpy())}")
-        print(f"@@@ imgs_path.shape {np.array(imgs_path)[i_train].shape}, imgs_path : {np.array(imgs_path)[5]}")
-        print(f"5th poses : {poses[5].cpu().numpy()}")
+        #print(f"@@@ imgs_path.shape {np.array(imgs_path)[i_train].shape}, imgs_path : {np.array(imgs_path)[5]}") # imgs_path.shape (64,)
+        #print(f"5th poses : {poses[5].cpu().numpy()}")
         t = time.time()-time0
         # print(f"Step: {global_step}, Loss: {loss}, Time: {dt}")
         #####           end            #####
@@ -1097,9 +1097,6 @@ def train():
             root_path = os.path.join(basedir, expname, 'mash_file')
             os.makedirs(root_path, exist_ok=True)
 
-            P_c2w = poses[i_train] #P_c2w type is : <class 'torch.Tensor'>, shape is torch.Size([64, 4, 4]) -> #np.array(poses).astype(np.float32)
-            # print(f"P_c2w type is : {type(P_c2w)}, shape is {P_c2w.shape}")
-
             with torch.no_grad():
                 # _, _, _weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_train, videodir=videosavedir)
                 print(f"weights shape {_weights.shape}")
@@ -1107,7 +1104,6 @@ def train():
                                         bounding_box, 
                                         poses[i_train].cpu().numpy(), 
                                         np.array(imgs_path)[i_train], 
-                                        P_c2w, 
                                         hwf, 
                                         num_pts, 
                                         levels, 
