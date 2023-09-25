@@ -401,7 +401,7 @@ def convert_sigma_samples_to_ply(
         
         weights = []
         for i, c2w in enumerate(tqdm(poses)):
-            _, _, _, weight, _ = render(H, W, K, chunk=1024*32, rays=rays, c2w=c2w[:3,:4], **render_kwargs)
+            _, _, _, weight, _ = render(H, W, K, chunk=1024*32, rays=rays, c2w=c2w.cpu().numpy()[:3,:4], **render_kwargs)
             weights.append(weight.cpu().numpy())
         weights = np.stack(weights, 0)
         print(f"@@@ weights.shape {weights.shape}")
