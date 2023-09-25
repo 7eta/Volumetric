@@ -171,7 +171,7 @@ def render_rays(ray_batch,
     # print(f"@@@ netwrok_fn : {type(network_fine)}")
     raw = network_query_fn(pts, viewdirs, network_fine)
     print(f"raw : {raw}")
-    print(f"raw.shaepe : {raw.shape}")
+    print(f"raw.shape : {raw.shape}")
     rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 
     if N_importance > 0:
@@ -275,11 +275,11 @@ def render(H, W, K, chunk=1024*32, rays=None, c2w=None, ndc=True,
     return ret_list + [ret_dict]
 
 @torch.no_grad()
-def batchify_rays(rays_flat, chunk=1024*32, **kwargs):
+def batchify_rays(rays_flat, chunk=32*1024, **kwargs):
     """Render rays in smaller minibatches to avoid OOM.
     """
     all_ret = {}
-    for i in range(0, rays_flat.shape[0], chunk):
+    for i in range(0, rays_flat.shape[0]*1000, chunk):
         ret = render_rays(rays_flat[i:i+chunk], **kwargs)
         for k in ret:
             if k not in all_ret:
@@ -413,7 +413,7 @@ def convert_sigma_samples_to_ply(
                                 vertices_image[i:i+remap_chunk, 1],
                                 interpolation=cv2.INTER_LINEAR)[:, 0]]
         colors = np.vstack(colors) # (N_vertices, 3)
-        print(f"colors shape : {colors.shape}")
+        print(f"colors shape : {colors.shape}") # (9482, 3)
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
