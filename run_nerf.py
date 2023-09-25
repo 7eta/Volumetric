@@ -1030,9 +1030,9 @@ def train():
         for param_group in optimizer.param_groups:
             param_group['lr'] = new_lrate
         ################################
-        print(f"@@@ i_train.shape : i_train.shape")
+        print(f"@@@ i_train.shape : {i_train.shape}")
         #print(f"@@@ poses.shape : {poses[i_train].cpu().numpy().shape}, type(poses) : {type(poses[i_train].cpu().numpy())}")
-        print(f"@@@ imgs_path.shape {len(imgs_path[i_train])}")
+        print(f"@@@ len(imgs_path) {len(imgs_path)}")
         t = time.time()-time0
         # print(f"Step: {global_step}, Loss: {loss}, Time: {dt}")
         #####           end            #####
