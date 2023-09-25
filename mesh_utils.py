@@ -222,8 +222,6 @@ def convert_sigma_samples_to_ply(
     start_time = time.time()
     print(ply_filename_out)
 
-    P_w2c = w2c
-    print(f"w2c shape{w2c.shape}")
     H, W, focal = hwf
     K = np.array([
             [focal, 0, 0.5*W],
@@ -300,6 +298,9 @@ def convert_sigma_samples_to_ply(
         image = image.resize((W, H), Image.LANCZOS)
         image = np.array(image) 
         print(f"@@image shape : {image.shape}") # (640, 360, 3) -> 
+
+        P_c2w = poses[idx]
+        P_w2c = np.linalg.inv(P_c2w)[:3] # (3, 4)
         ## project vertices from world coordinate to camera coordinate
         vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back" 
         print(f"@@vertices_cam shape : {vertices_cam.shape}") # (3, 4, 250) ->
