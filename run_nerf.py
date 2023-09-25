@@ -1031,7 +1031,7 @@ def train():
             param_group['lr'] = new_lrate
         ################################
 
-        print(f"@@@ poses.shape : {poses.cpu().numpy().shape}, type(poses) : {type(poses.cpu().numpy())}")
+        print(f"@@@ poses.shape : {poses[i_train].cpu().numpy().shape}, type(poses) : {type(poses[i_train].cpu().numpy())}")
         t = time.time()-time0
         # print(f"Step: {global_step}, Loss: {loss}, Time: {dt}")
         #####           end            #####
@@ -1101,7 +1101,7 @@ def train():
             with torch.no_grad():
                 # _, _, _weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_train, videodir=videosavedir)
                 print(f"weights shape {_weights.shape}")
-                generate_and_write_mesh(global_step, bounding_box, poses.cpu().numpy(), imgs_path[i_train], P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+                generate_and_write_mesh(global_step, bounding_box, poses.cpu().numpy(), [i_train], P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
             print('Done, saving mesh at ', root_path)
 
 
