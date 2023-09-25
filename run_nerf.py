@@ -1030,9 +1030,9 @@ def train():
         for param_group in optimizer.param_groups:
             param_group['lr'] = new_lrate
         ################################
-        print(f"@@@ i_train.shape : {i_train.shape}")
+        #print(f"@@@ i_train.shape : {i_train.shape}")
         #print(f"@@@ poses.shape : {poses[i_train].cpu().numpy().shape}, type(poses) : {type(poses[i_train].cpu().numpy())}")
-        print(f"@@@ len(imgs_path) {len(imgs_path)}")
+        print(f"@@@ imgs_path.shape {np.array(imgs_path)[i_train].shape}, imgs_path : {np.array(imgs_path)[5]}")
         t = time.time()-time0
         # print(f"Step: {global_step}, Loss: {loss}, Time: {dt}")
         #####           end            #####
@@ -1105,7 +1105,7 @@ def train():
                 generate_and_write_mesh(global_step, 
                                         bounding_box, 
                                         poses[i_train].cpu().numpy(), 
-                                        imgs_path[i_train], 
+                                        np.array(imgs_path)[i_train], 
                                         P_c2w, 
                                         hwf, 
                                         num_pts, 
