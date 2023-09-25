@@ -166,7 +166,7 @@ def convert_sigma_samples_to_ply(
         z_vals = 1./(1./near * (1.-t_vals) + 1./far * (t_vals))
         z_vals = z_vals.expand([N_vertices, 32])
 
-        pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None]
+        pts = rays_o[...,None,:].cuda() + rays_d[...,None,:].cuda() * z_vals[...,:,None].cuda()
         
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
