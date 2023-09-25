@@ -88,7 +88,9 @@ def render_rays(ray_batch,
                 verbose=False,
                 pytest=False,
                 use_viewdirs=None,
-                ndc=False):
+                ndc=False,
+                near=2.0,
+                far=6.0):
     
     '''
     render_kwargs_train = {
@@ -103,7 +105,9 @@ def render_rays(ray_batch,
         'white_bkgd' : args.white_bkgd,
         'raw_noise_std' : args.raw_noise_std,
         'ndc' : False,
-        'lindisp' : args.lindisp
+        'lindisp' : args.lindisp,
+        'near' : 2.0,
+        'far' : 6.0
     }
     '''    
 
@@ -113,6 +117,7 @@ def render_rays(ray_batch,
     viewdirs = ray_batch[:,-3:] if ray_batch.shape[-1] > 8 else None
     bounds = torch.reshape(ray_batch[...,6:8], [-1,1,2])
     near, far = bounds[...,0], bounds[...,1] # [-1,1]
+    print(near, far)
 
     t_vals = torch.linspace(0., 1., steps=N_samples)
     if not lindisp:
