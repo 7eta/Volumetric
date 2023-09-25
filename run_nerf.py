@@ -1033,6 +1033,7 @@ def train():
         #print(f"@@@ i_train.shape : {i_train.shape}")
         #print(f"@@@ poses.shape : {poses[i_train].cpu().numpy().shape}, type(poses) : {type(poses[i_train].cpu().numpy())}")
         print(f"@@@ imgs_path.shape {np.array(imgs_path)[i_train].shape}, imgs_path : {np.array(imgs_path)[5]}")
+        print(f"5th poses : {poses[5].cpu().numpy()}")
         t = time.time()-time0
         # print(f"Step: {global_step}, Loss: {loss}, Time: {dt}")
         #####           end            #####
