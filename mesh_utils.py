@@ -429,6 +429,9 @@ def convert_sigma_samples_to_ply(
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
 
+        with torch.no_grad():
+            _, _, weights = render_path(poses[idx], hwf, K, chunk=1024*32, **render_kwargs)
+
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
         # non_occluded += opacity < 0.2
 
