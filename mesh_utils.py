@@ -20,6 +20,8 @@ import pdb
 from PIL import Image
 from run_nerf_helpers import *
 
+
+
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
     voxel_grid_origin,
@@ -121,13 +123,13 @@ def convert_sigma_samples_to_ply(
         image = Image.open(imgs_path[idx]).convert('RGB')
         image = image.resize((W, H), Image.LANCZOS)
         image = np.array(image) 
-        print(f"@@image shape : {image.shape}") # (640, 360, 3) -> 
+        # print(f"@@image shape : {image.shape}") # (640, 360, 3) -> 
 
         P_c2w = poses[idx]
         P_w2c = np.linalg.inv(P_c2w)[:3] # (3, 4)
         ## project vertices from world coordinate to camera coordinate
         vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back" 
-        print(f"@@vertices_cam shape : {vertices_cam.shape}") # (3, 4, 250) -> (3, 9482)
+        # print(f"@@vertices_cam shape : {vertices_cam.shape}") # (3, 4, 250) -> (3, 9482)
         vertices_cam[1:] *= -1 # (3, N) in "right down forward"
         ## project vertices from camera coordinate to pixel coordinate
         vertices_image = (K @ vertices_cam).T # (N, 3)
@@ -158,9 +160,19 @@ def convert_sigma_samples_to_ply(
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
         # print(f"!!! rays.shape : {rays.shape}") # !!! rays.shape : torch.Size([9482, 8])
+
+
+        t_vals = torch.linspace(0., 1., steps=32)
+        z_vals = 1./(1./near * (1.-t_vals) + 1./far * (t_vals))
+        z_vals = z_vals.expand([N_vertices, 32])
+
+        pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None]
         
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
+
+        with torch.no_grad:
+            raw = radiance_field(pts,None,nerf_model)
 
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
         # non_occluded += opacity < 0.2
