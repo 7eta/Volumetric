@@ -22,6 +22,24 @@ from run_nerf_helpers import *
 
 DEBUG = False
 
+def render_path(poses, hwf, K, chunk, render_kwargs, render_factor=0):
+    H, W, focal = hwf
+    near, far = render_kwargs['near'], render_kwargs['far']
+
+    if render_factor!=0:
+        # Render downsampled for speed
+        H = H//render_factor
+        W = W//render_factor
+        focal = focal/render_factor
+
+    weights = []
+    for i, c2w in enumerate(tqdm(poses)):
+        _, _, _, weight, _ = render(H, W, K, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
+        weights.append(weight.cpu().numpy())
+
+    weights = np.stack(weights, 0)
+
+    return weights
 
 def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=False):
     """Transforms model's predictions to semantically meaningful values.
@@ -150,8 +168,10 @@ def render_rays(ray_batch,
     print(f"@@@@ pts shape : {pts.shape}")
     @@@@ pts shape : torch.Size([9478, 64, 3])
     '''
-    print(f"@@@ netwrok_fn : {type(network_fine)}")
+    # print(f"@@@ netwrok_fn : {type(network_fine)}")
     raw = network_query_fn(pts, viewdirs, network_fine)
+    print(f"raw : {raw}")
+    print(f"raw.shaepe : {raw.shape}")
     rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 
     if N_importance > 0:
@@ -405,7 +425,7 @@ def convert_sigma_samples_to_ply(
         ## opacity along the path from camera origin to the vertices
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
-        print(f"!!! rays.shape : {rays.shape}")
+        # print(f"!!! rays.shape : {rays.shape}") # !!! rays.shape : torch.Size([9482, 8])
         
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")

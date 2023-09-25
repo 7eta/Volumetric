@@ -70,6 +70,8 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, netchunk=1024*64):
 def batchify_rays(rays_flat, chunk=1024*32, **kwargs):
     """Render rays in smaller minibatches to avoid OOM.
     """
+    print(f"rays_flat : {rays_flat}")
+    print(f"rays_flat.shape : {rays_flat.shape}")
     all_ret = {}
     for i in range(0, rays_flat.shape[0], chunk):
         ret = render_rays(rays_flat[i:i+chunk], **kwargs)
@@ -511,6 +513,8 @@ def render_rays(ray_batch,
     pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None] # [N_rays, N_samples, 3]
 
     raw = network_query_fn(pts, viewdirs, network_fn)
+    print(f"raw : {raw}")
+    print(f"raw.shaepe : {raw.shape}")
     # print(f"@@@ network_fn : {type(network_fn)}") # @@@ network_fn : <class 'run_nerf_helpers.NeRFSmall'>
     rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 
