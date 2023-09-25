@@ -752,7 +752,7 @@ def train():
         if args.video_in != "":
              import colmap
              print(f"colmap return은 {colmap.run(args.video_in)}")
-        images, poses, render_poses, hwf, i_split, bounding_box = load_own_data(args.datadir, args.half_res, args.testskip)
+        images, poses, render_poses, hwf, i_split, bounding_box, imgs_path = load_own_data(args.datadir, args.half_res, args.testskip)
         args.bounding_box = bounding_box
         print('Loaded own data', images.shape, render_poses.shape, hwf, args.datadir)
         i_train, i_val, i_test = i_split
@@ -1100,7 +1100,7 @@ def train():
             with torch.no_grad():
                 # _, _, _weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_train, videodir=videosavedir)
                 print(f"weights shape {_weights.shape}")
-                generate_and_write_mesh(global_step, bounding_box, poses[i_train], images[i_train], P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
+                generate_and_write_mesh(global_step, bounding_box, poses[i_train], imgs_path[i_train], P_c2w, hwf, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
             print('Done, saving mesh at ', root_path)
 
 

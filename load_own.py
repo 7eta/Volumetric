@@ -39,6 +39,7 @@ def load_own_data(basedir, half_res=False, testskip=1):
     with open(os.path.join(basedir, 'transforms.json'), 'r') as fp:
         meta = json.load(fp)
 
+    imgs_path = []
     imgs = []
     poses = []
     counts = [0]
@@ -47,6 +48,7 @@ def load_own_data(basedir, half_res=False, testskip=1):
             
     for frame in meta['frames'][::1]:
         fname = os.path.join(basedir, frame['file_path'])
+        imgs_path.append(fname)
         imgs.append(imageio.imread(fname))
         poses.append(np.array(frame['transform_matrix']))
     imgs = (np.array(imgs) / 255.).astype(np.float32) # keep all 4 channels (RGBA)
@@ -89,4 +91,4 @@ def load_own_data(basedir, half_res=False, testskip=1):
 
     bounding_box = get_bbox3d_for_blenderobj(meta, H, W, near=2.0, far=6.0)
         
-    return imgs, poses, render_poses, [H, W, focal], i_split, bounding_box
+    return imgs, poses, render_poses, [H, W, focal], i_split, bounding_box, imgs_path

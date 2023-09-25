@@ -201,7 +201,7 @@ def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
     voxel_grid_origin,
     device,
-    target,
+    imgs_path,
     poses,
     w2c,
     hwf,
@@ -223,6 +223,7 @@ def convert_sigma_samples_to_ply(
     print(ply_filename_out)
 
     P_w2c = w2c
+    print(f"w2c shape{w2c.shape}")
     H, W, focal = hwf
     K = np.array([
             [focal, 0, 0.5*W],
@@ -294,18 +295,14 @@ def convert_sigma_samples_to_ply(
     v_color_sum = np.zeros((N_vertices, 3))
     # print(f"type is {type(target)}")
 
-    for idx in tqdm(range(len(target))):
-        min_value = np.min(target[idx])
-        max_value = np.max(target[idx])
-        image_array = (target[idx] - min_value) / (max_value - min_value) * 255
-        image_array = image_array.astype(np.uint8)
-        image = Image.fromarray(image_array)
+    for idx in tqdm(range(len(imgs_path))):
+        image = Image.open(imgs_path[idx]).convert('RGB')
         image = image.resize((W, H), Image.LANCZOS)
-        image = np.array(image)
-        print(f"@@image shape : {image.shape}")
+        image = np.array(image) 
+        print(f"@@image shape : {image.shape}") # (640, 360, 3) -> 
         ## project vertices from world coordinate to camera coordinate
-        vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back"
-        print(f"@@vertices_cam shape : {vertices_cam.shape}")
+        vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back" 
+        print(f"@@vertices_cam shape : {vertices_cam.shape}") # (3, 4, 250) ->
         vertices_cam[1:] *= -1 # (3, N) in "right down forward"
         ## project vertices from camera coordinate to pixel coordinate
         vertices_image = (K @ vertices_cam).T # (N, 3)
@@ -384,7 +381,7 @@ def convert_sigma_samples_to_ply(
     )
 
 
-def generate_and_write_mesh(i,bounding_box, poses, target, c2w, hwf, num_pts, levels, chunk, device, ply_root, **render_kwargs):
+def generate_and_write_mesh(i,bounding_box, poses, imgs_path, c2w, hwf, num_pts, levels, chunk, device, ply_root, **render_kwargs):
     """
     Generate density grid for marching cubes
     :bounding_box: bounding box for meshing 
@@ -427,6 +424,6 @@ def generate_and_write_mesh(i,bounding_box, poses, target, c2w, hwf, num_pts, le
     for level in levels:
         try:
             sizes = (abs(bounding_box[1] - bounding_box[0]).cpu()).tolist()
-            convert_sigma_samples_to_ply(input_sigma_arr, list(bb_min), device, target, poses, P_w2c, hwf, sizes, osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), level = level, **render_kwargs)
+            convert_sigma_samples_to_ply(input_sigma_arr, list(bb_min), device, imgs_path, poses, P_w2c, hwf, sizes, osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), level = level, **render_kwargs)
         except ValueError:
             print(f"Density field does not seem to have an isosurface at level {level} yet")
