@@ -459,9 +459,7 @@ def render_rays(ray_batch,
     rays_o, rays_d = ray_batch[:,0:3], ray_batch[:,3:6] # [N_rays, 3] each
     viewdirs = ray_batch[:,-3:] if ray_batch.shape[-1] > 8 else None
     bounds = torch.reshape(ray_batch[...,6:8], [-1,1,2])
-    near, far = bounds[...,0], bounds[...,1] # [-1,1]
-    print(f"### near, far : {near.shape}, {far.shape}\n\
-          type(near) : {type(near)}")
+    near, far = bounds[...,0], bounds[...,1] # [-1,1] ear) torch.Size([32768, 1]), torch.Size([32768, 1])
 
     t_vals = torch.linspace(0., 1., steps=N_samples)
     if not lindisp:
