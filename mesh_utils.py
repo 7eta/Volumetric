@@ -20,6 +20,9 @@ import pdb
 from PIL import Image
 from run_nerf_helpers import *
 
+DEBUG = False
+
+
 def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=False):
     """Transforms model's predictions to semantically meaningful values.
     Args:
@@ -490,6 +493,10 @@ def generate_and_write_mesh(i,
     nerf_model = render_kwargs['network_fine']
     radiance_field = render_kwargs['network_query_fn']
 
+    print(f"##coords : {coords}")
+    print(f"##coords.shape : {coords.shape}")
+    print(f"##chunk : {chunk}")
+
     chunk_outs = []
 
     for k in tqdm(range(coords.shape[1] // chunk), desc = "Retrieving densities at grid points"):
@@ -501,6 +508,9 @@ def generate_and_write_mesh(i,
         chunk_outs.append(chunk_out.detach().cpu().numpy()[:, :, -1])
 
     input_sigma_arr = np.concatenate(chunk_outs, axis = -1).reshape(num_pts, num_pts, num_pts)
+
+    print(f"##chunk_out : {chunk_out}")
+    print(f"##chunk_out.shape : {chunk_out.shape}")
 
     for level in levels:
         try:
