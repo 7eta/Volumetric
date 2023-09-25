@@ -359,27 +359,27 @@ def convert_sigma_samples_to_ply(
         rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
         rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
         near = np.array([2.0, 6.0]).min() * torch.ones_like(rays_o[:, :1])
-        _near = near.cuda()
+        # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
         ## opacity along the path from camera origin to the vertices
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
-        _far = far.cuda()
+        # _far = far.cuda()
         rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
-        N_rays = rays.shape[0]
+        # N_rays = rays.shape[0]
         # print(f"near shape : {near.shape}, near : {near}\n far shape : {far.shape}, far : {far} \n rays.shape : {rays.shape} rays : {rays}")
 
-        t_vals = torch.linspace(0., 1., steps=N_vertices, device=rays.device)
+        # t_vals = torch.linspace(0., 1., steps=N_vertices, device=rays.device)
         # print(f"rays_o shape : {rays_o.shape} , rays_d shape : {rays_d.shape}, \n t_vals shape : {t_vals}, t_vals : {t_vals}")
-        z_vals = 1./(1./_near * (1.-t_vals) + 1./_far * (t_vals))
-        z_vals = z_vals.expand([N_rays, N_vertices])
+        # z_vals = 1./(1./_near * (1.-t_vals) + 1./_far * (t_vals))
+        # z_vals = z_vals.expand([N_rays, N_vertices])
 
         
 
-        pts = rays_o[...,None,:].to('cuda:0') + rays_d[...,None,:].to('cuda:0') * z_vals[...,:,None].to('cuda:0')
-        print(f"pts shape : {pts.shape}")
+        #pts = rays_o[...,None,:].to('cuda:0') + rays_d[...,None,:].to('cuda:0') * z_vals[...,:,None].to('cuda:0')
+        #print(f"pts shape : {pts.shape}")
 
-        dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor).to(device)
-        print(f"dummy_viewdirs shape : {dummy_viewdirs.shape}")
+        #dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor).to(device)
+        #print(f"dummy_viewdirs shape : {dummy_viewdirs.shape}")
 
         sh = rays_d.shape # [..., 3]->확인필요
         print(f"### sh.shape : {sh}")
