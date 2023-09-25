@@ -18,6 +18,7 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 import pdb
 from PIL import Image
+from run_nerf_helpers import *
 
 def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=False):
     """Transforms model's predictions to semantically meaningful values.
@@ -341,7 +342,9 @@ def convert_sigma_samples_to_ply(
         z_vals = 1./(1./_near * (1.-t_vals) + 1./_far * (t_vals))
         z_vals = z_vals.expand([N_rays, N_vertices])
 
-        pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None]
+        
+
+        pts = rays_o[...,None,:].to('cuda:0') + rays_d[...,None,:].to('cuda:0') * z_vals[...,:,None].to('cuda:0')
 
         dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor).to(device)
 
