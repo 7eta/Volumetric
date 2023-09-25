@@ -180,6 +180,73 @@ def render_rays(ray_batch,
 
     return ret
 
+def render(H, W, K, chunk=1024*32, rays=None, c2w=None, ndc=True,
+                  near=0., far=1.,
+                  use_viewdirs=False, c2w_staticcam=None,
+                  **kwargs):
+    """Render rays
+    Args:
+      H: int. Height of image in pixels.
+      W: int. Width of image in pixels.
+      focal: float. Focal length of pinhole camera.
+      chunk: int. Maximum number of rays to process simultaneously. Used to
+        control maximum memory usage. Does not affect final results.
+      rays: array of shape [2, batch_size, 3]. Ray origin and direction for
+        each example in batch.
+      c2w: array of shape [3, 4]. Camera-to-world transformation matrix.
+      ndc: bool. If True, represent ray origin, direction in NDC coordinates.
+      near: float or array of shape [batch_size]. Nearest distance for a ray.
+      far: float or array of shape [batch_size]. Farthest distance for a ray.
+      use_viewdirs: bool. If True, use viewing direction of a point in space in model.
+      c2w_staticcam: array of shape [3, 4]. If not None, use this transformation matrix for
+       camera while using other c2w argument for viewing directions.
+    Returns:
+      rgb_map: [batch_size, 3]. Predicted RGB values for rays.
+      disp_map: [batch_size]. Disparity map. Inverse of depth.
+      acc_map: [batch_size]. Accumulated opacity (alpha) along a ray.
+      extras: dict with everything returned by render_rays().
+    """
+    if c2w is not None:
+        # special case to render full image
+        rays_o, rays_d = get_rays(H, W, K, c2w)
+    else:
+        # use provided ray batch
+        rays_o, rays_d = rays
+
+    if use_viewdirs:
+        # provide ray directions as input
+        viewdirs = rays_d
+        if c2w_staticcam is not None:
+            # special case to visualize effect of viewdirs
+            rays_o, rays_d = get_rays(H, W, K, c2w_staticcam)
+        viewdirs = viewdirs / torch.norm(viewdirs, dim=-1, keepdim=True)
+        viewdirs = torch.reshape(viewdirs, [-1,3]).float()
+
+    sh = rays_d.shape # [..., 3]
+    if ndc:
+        # for forward facing scenes
+        rays_o, rays_d = ndc_rays(H, W, K[0][0], 1., rays_o, rays_d)
+
+    # Create ray batch
+    rays_o = torch.reshape(rays_o, [-1,3]).float()
+    rays_d = torch.reshape(rays_d, [-1,3]).float()
+
+    near, far = near * torch.ones_like(rays_d[...,:1]), far * torch.ones_like(rays_d[...,:1])
+    rays = torch.cat([rays_o, rays_d, near, far], -1)
+    if use_viewdirs:
+        rays = torch.cat([rays, viewdirs], -1)
+
+    # Render and reshape
+    all_ret = batchify_rays(rays, chunk, **kwargs)
+    for k in all_ret:
+        k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
+        all_ret[k] = torch.reshape(all_ret[k], k_sh)
+
+    k_extract = ['rgb_map', 'depth_map', 'acc_map', 'weight']
+    ret_list = [all_ret[k] for k in k_extract]
+    ret_dict = {k : all_ret[k] for k in all_ret if k not in k_extract}
+    return ret_list + [ret_dict]
+
 @torch.no_grad()
 def batchify_rays(rays_flat, chunk=1024*32, **kwargs):
     """Render rays in smaller minibatches to avoid OOM.
@@ -330,28 +397,18 @@ def convert_sigma_samples_to_ply(
         ## the far plane is the depth of the vertices, since what we want is the accumulated
         ## opacity along the path from camera origin to the vertices
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
-        # _far = far.cuda()
         rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
-        # N_rays = rays.shape[0]
-        # print(f"near shape : {near.shape}, near : {near}\n far shape : {far.shape}, far : {far} \n rays.shape : {rays.shape} rays : {rays}")
-
-        # t_vals = torch.linspace(0., 1., steps=N_vertices, device=rays.device)
-        # print(f"rays_o shape : {rays_o.shape} , rays_d shape : {rays_d.shape}, \n t_vals shape : {t_vals}, t_vals : {t_vals}")
-        # z_vals = 1./(1./_near * (1.-t_vals) + 1./_far * (t_vals))
-        # z_vals = z_vals.expand([N_rays, N_vertices])
-
         
+        weights = []
+        for i, c2w in enumerate(tqdm(poses)):
+            _, _, _, weight, _ = render(H, W, K, chunk=1024*32, rays=rays, c2w=c2w[:3,:4], **render_kwargs)
+            weights.append(weight.cpu().numpy())
+        weights = np.stack(weights, 0)
+        print(f"@@@ weights.shape {weights.shape}")
 
-        #pts = rays_o[...,None,:].to('cuda:0') + rays_d[...,None,:].to('cuda:0') * z_vals[...,:,None].to('cuda:0')
-        #print(f"pts shape : {pts.shape}")
-
-        #dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor).to(device)
-        #print(f"dummy_viewdirs shape : {dummy_viewdirs.shape}")
 
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
-        print(f"@@@@ \n\
-              render_kwargs : {render_kwargs}")
         all_ret = batchify_rays(rays, 1024*32, **render_kwargs)
         for k in all_ret:
             k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
