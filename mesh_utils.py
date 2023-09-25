@@ -334,7 +334,7 @@ def convert_sigma_samples_to_ply(
         N_rays = rays.shape[0]
         print(f"near shape : {near.shape}, near : {near}\n far shape : {far.shape}, far : {far} \n rays.shape : {rays.shape} rays : {rays}")
 
-        t_vals = torch.linspace(0., 1., steps=N_vertices)
+        t_vals = torch.linspace(0., 1., steps=N_vertices, device=rays.device)
         print(f"rays_o shape : {rays_o.shape} , rays_d shape : {rays_d.shape}, \n t_vals shape : {t_vals}, t_vals : {t_vals}")
         z_vals = 1./(1./near * (1.-t_vals) + 1./far * (t_vals))
         z_vals = z_vals.expand([N_rays, N_vertices])
@@ -434,6 +434,15 @@ def generate_and_write_mesh(i,
     for level in levels:
         try:
             sizes = (abs(bounding_box[1] - bounding_box[0]).cpu()).tolist()
-            convert_sigma_samples_to_ply(input_sigma_arr, list(bb_min), device, imgs_path, poses, hwf, sizes, osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), level = level, **render_kwargs)
+            convert_sigma_samples_to_ply(input_sigma_arr, 
+                                         list(bb_min), 
+                                         device, 
+                                         imgs_path, 
+                                         poses, 
+                                         hwf, 
+                                         sizes, 
+                                         osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), 
+                                         level = level, 
+                                         **render_kwargs)
         except ValueError:
             print(f"Density field does not seem to have an isosurface at level {level} yet")
