@@ -79,6 +79,7 @@ def batchify_rays(rays_flat, chunk=1024*32, **kwargs):
             all_ret[k].append(ret[k])
 
     all_ret = {k : torch.cat(all_ret[k], 0) for k in all_ret}
+    print(f"batchify's all_ret : {all_ret}")
     return all_ret
 
 
@@ -529,10 +530,45 @@ def render_rays(ray_batch,
         raw = network_query_fn(pts, viewdirs, run_fn)
 
         rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
+        '''
         print(f"@@@@ \n\
                 render_rays's weights shape {weights.shape}, \n\
                 weights.sum is {weights.sum(1).shape}, \n\
                 type(weights.sum) is {type(weights.sum(1))}")
+
+        @@@@ 
+                render_rays's weights shape torch.Size([32768, 192]), 
+                weights.sum is torch.Size([32768]), 
+                type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([32768, 192]), 
+                        weights.sum is torch.Size([32768]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([32768, 192]), 
+                        weights.sum is torch.Size([32768]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([32768, 192]), 
+                        weights.sum is torch.Size([32768]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([32768, 192]), 
+                        weights.sum is torch.Size([32768]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([32768, 192]), 
+                        weights.sum is torch.Size([32768]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([32768, 192]), 
+                        weights.sum is torch.Size([32768]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([1024, 192]), 
+                        weights.sum is torch.Size([1024]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        '''
 
     ret = {'rgb_map' : rgb_map, 'depth_map' : depth_map, 'acc_map' : acc_map, 'sparsity_loss': sparsity_loss, 'weight' : weights.sum(1)}
     if retraw:

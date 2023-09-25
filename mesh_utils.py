@@ -114,6 +114,8 @@ def render_rays(ray_batch,
     }
     '''    
 
+    nerf_model = network_fn['network_fine']
+
 
     N_rays = ray_batch.shape[0]
     rays_o, rays_d = ray_batch[:,0:3], ray_batch[:,3:6] # [N_rays, 3] each
@@ -146,9 +148,12 @@ def render_rays(ray_batch,
         z_vals = lower + (upper - lower) * t_rand
 
     pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None] # [N_rays, N_samples, 3]
+    '''
     print(f"@@@@ pts shape : {pts.shape}")
+    @@@@ pts shape : torch.Size([9478, 64, 3])
+    '''
 
-    raw = network_query_fn(pts, viewdirs, network_fn)
+    raw = network_query_fn(pts, viewdirs, nerf_model)
     rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 
     if N_importance > 0:
@@ -402,6 +407,7 @@ def convert_sigma_samples_to_ply(
         ## opacity along the path from camera origin to the vertices
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
+        print(f"!!! rays.shape : {rays.shape}")
         
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
@@ -485,11 +491,20 @@ def generate_and_write_mesh(i,
 
     nerf_model = render_kwargs['network_fine']
     radiance_field = render_kwargs['network_query_fn']
-
+    '''
     print(f"##coords : {coords}")
     print(f"##coords.shape : {coords.shape}")
     print(f"##chunk : {chunk}")
-
+    ##coords : tensor([[[-2.7596, -1.9699, -2.4187],
+         [-2.7596, -1.9699, -2.4022],
+         [-2.7596, -1.9699, -2.3856],
+         ...,
+         [ 2.3489,  2.6610,  1.7647],
+         [ 2.3489,  2.6610,  1.7813],
+         [ 2.3489,  2.6610,  1.7978]]])
+    ##coords.shape : torch.Size([1, 16777216, 3])
+    ##chunk : 32768
+    '''
     chunk_outs = []
 
     for k in tqdm(range(coords.shape[1] // chunk), desc = "Retrieving densities at grid points"):
@@ -501,9 +516,18 @@ def generate_and_write_mesh(i,
         chunk_outs.append(chunk_out.detach().cpu().numpy()[:, :, -1])
 
     input_sigma_arr = np.concatenate(chunk_outs, axis = -1).reshape(num_pts, num_pts, num_pts)
-
+    '''
     print(f"##chunk_out : {chunk_out}")
     print(f"##chunk_out.shape : {chunk_out.shape}")
+    ##chunk_out : tensor([[[1.7850, 1.1321, 0.7393, 0.2605],████████████████████| 512/512 [00:12<00:00, 42.39it/s]
+         [1.7396, 1.1042, 0.7300, 0.3160],
+         [1.6741, 1.0633, 0.7139, 0.3710],
+         ...,
+         [1.1437, 0.8011, 0.5585, 0.0391],
+         [1.0863, 0.7637, 0.5336, 0.0523],
+         [0.9940, 0.6975, 0.4910, 0.1351]]])
+    ##chunk_out.shape : torch.Size([1, 32768, 4])
+    '''
 
     for level in levels:
         try:
