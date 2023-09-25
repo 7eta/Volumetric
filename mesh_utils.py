@@ -382,7 +382,18 @@ def convert_sigma_samples_to_ply(
     )
 
 
-def generate_and_write_mesh(i,bounding_box, poses, imgs_path, c2w, hwf, num_pts, levels, chunk, device, ply_root, **render_kwargs):
+def generate_and_write_mesh(i,
+                            bounding_box, 
+                            poses, 
+                            imgs_path, 
+                            c2w, 
+                            hwf, 
+                            num_pts, 
+                            levels, 
+                            chunk, 
+                            device, 
+                            ply_root, 
+                            **render_kwargs):
     """
     Generate density grid for marching cubes
     :bounding_box: bounding box for meshing 
