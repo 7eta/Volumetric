@@ -176,12 +176,43 @@ def render(H, W, K, chunk=1024*32, rays=None, c2w=None, ndc=True,
                   use_viewdirs=False, c2w_staticcam=None,
                   **kwargs):
     
+    if c2w is not None:
+        # special case to render full image
+        rays_o, rays_d = get_rays(H, W, K, c2w)
+    else:
+        # use provided ray batch
+        rays_o, rays_d = rays
+
+    if use_viewdirs:
+        # provide ray directions as input
+        viewdirs = rays_d
+        if c2w_staticcam is not None:
+            # special case to visualize effect of viewdirs
+            rays_o, rays_d = get_rays(H, W, K, c2w_staticcam)
+        viewdirs = viewdirs / torch.norm(viewdirs, dim=-1, keepdim=True)
+        viewdirs = torch.reshape(viewdirs, [-1,3]).float()
+
+    sh = rays_d.shape # [..., 3]
+    if ndc:
+        # for forward facing scenes
+        rays_o, rays_d = ndc_rays(H, W, K[0][0], 1., rays_o, rays_d)
+
+    # Create ray batch
+    rays_o = torch.reshape(rays_o, [-1,3]).float()
+    rays_d = torch.reshape(rays_d, [-1,3]).float()
+
+    near, far = near * torch.ones_like(rays_d[...,:1]), far * torch.ones_like(rays_d[...,:1])
+    rays = torch.cat([rays_o, rays_d, near, far], -1)
+    if use_viewdirs:
+        rays = torch.cat([rays, viewdirs], -1)
+
+    # Render and reshape
     all_ret = batchify_rays(rays, chunk, **kwargs)
     for k in all_ret:
         k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
         all_ret[k] = torch.reshape(all_ret[k], k_sh)
 
-    k_extract = ['rgb_map', 'depth_map', 'acc_map', 'weights']
+    k_extract = ['rgb_map', 'depth_map', 'acc_map', 'weight']
     ret_list = [all_ret[k] for k in k_extract]
     ret_dict = {k : all_ret[k] for k in all_ret if k not in k_extract}
     return ret_list + [ret_dict]
@@ -351,9 +382,11 @@ def convert_sigma_samples_to_ply(
         print(f"dummy_viewdirs shape : {dummy_viewdirs.shape}")
 
 
-        _, _, _, weight, _ = render(H, W, K, chunk=1024*32, rays=rays,
+        _, _, _, weight, _ = render(H, W, K, chunk=1024*32, rays=rays, c2w=P_c2w,
                                                 verbose=False, retraw=True,
                                                 **render_kwargs)
+
+        print(f"weight shape : {weight.shape}")
 
         opacity = weight.sum(1)
         opacity = opacity.cpu().numpy()[:, np.newaxis]
