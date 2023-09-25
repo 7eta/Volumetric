@@ -1031,8 +1031,8 @@ def train():
             param_group['lr'] = new_lrate
         ################################
 
-        print(f"@@@ poses.shape : {poses[i_train].cpu().numpy().shape}, type(poses) : {type(poses[i_train].cpu().numpy())}")
-        print(f"imgs_path.shape {imgs_path[i_train].shape}, print(imgs_path):{imgs_path[3]}")
+        #print(f"@@@ poses.shape : {poses[i_train].cpu().numpy().shape}, type(poses) : {type(poses[i_train].cpu().numpy())}")
+        print(f"@@@ imgs_path.shape {imgs_path.shape}")
         t = time.time()-time0
         # print(f"Step: {global_step}, Loss: {loss}, Time: {dt}")
         #####           end            #####
