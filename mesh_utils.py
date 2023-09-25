@@ -86,7 +86,8 @@ def render_rays(ray_batch,
                 white_bkgd=False,
                 raw_noise_std=0.,
                 verbose=False,
-                pytest=False):
+                pytest=False,
+                use_viewdirs=None):
     
     N_rays = ray_batch.shape[0]
     rays_o, rays_d = ray_batch[:,0:3], ray_batch[:,3:6] # [N_rays, 3] each
@@ -324,8 +325,9 @@ def convert_sigma_samples_to_ply(
         #dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor).to(device)
         #print(f"dummy_viewdirs shape : {dummy_viewdirs.shape}")
 
-        sh = rays_d.shape # [..., 3]->확인필요
-        print(f"### sh.shape : {sh}")
+        sh = rays_d.shape # [..., 3] ->확인됨
+        # print(f"### sh.shape : {sh}")
+        print(f"{render_kwargs}")
         all_ret = batchify_rays(rays, 1024*32, **render_kwargs)
         for k in all_ret:
             k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
