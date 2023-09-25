@@ -403,17 +403,9 @@ def convert_sigma_samples_to_ply(
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
         
-        weights = []
-        for i, c2w in enumerate(tqdm(poses)):
-            _, _, _, weight, _ = render(H, W, K, chunk=1024*32, rays=rays, c2w=c2w.cpu().numpy()[:3,:4], **render_kwargs)
-            weights.append(weight.cpu().numpy())
-        weights = np.stack(weights, 0)
-        print(f"@@@ weights.shape {weights.shape}")
-
-
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
-        all_ret = batchify_rays(rays, 1024*32, **render_kwargs)
+        all_ret = batchify_rays(rays, N_vertices, **render_kwargs)
         for k in all_ret:
             k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
             all_ret[k] = torch.reshape(all_ret[k], k_sh)

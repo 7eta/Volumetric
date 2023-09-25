@@ -391,11 +391,31 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
     # sigma_loss = sigma_sparsity_loss(raw[...,3])
     alpha = raw2alpha(raw[...,3] + noise, dists)  # [N_rays, N_samples]
     # weights = alpha * tf.math.cumprod(1.-alpha + 1e-10, -1, exclusive=True)
-    weights = alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
+    weights = \
+        alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
     rgb_map = torch.sum(weights[...,None] * rgb, -2)  # [N_rays, 3]
-
+    '''
+    # 32768 = 1024*32 로 chunk를 의미하는것 같다.
     print(f"!!!!!!!!\
-          weights shape {weights.shape}") # [N_rays, N_samples]
+        weights shape {weights.shape}") # [N_rays, N_samples]
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([1024, 64])
+    !!!!!!!!          weights shape torch.Size([1024, 192])
+    '''
+
 
     depth_map = torch.sum(weights * z_vals, -1) / torch.sum(weights, -1)
     disp_map = 1./torch.max(1e-10 * torch.ones_like(depth_map), depth_map)
@@ -462,7 +482,7 @@ def render_rays(ray_batch,
     rays_o, rays_d = ray_batch[:,0:3], ray_batch[:,3:6] # [N_rays, 3] each
     viewdirs = ray_batch[:,-3:] if ray_batch.shape[-1] > 8 else None
     bounds = torch.reshape(ray_batch[...,6:8], [-1,1,2])
-    near, far = bounds[...,0], bounds[...,1] # [-1,1] ear) torch.Size([32768, 1]), torch.Size([32768, 1])
+    near, far = bounds[...,0], bounds[...,1] # [-1,1] near) torch.Size([32768, 1]), torch.Size([32768, 1])
 
     t_vals = torch.linspace(0., 1., steps=N_samples)
     if not lindisp:
@@ -509,7 +529,10 @@ def render_rays(ray_batch,
         raw = network_query_fn(pts, viewdirs, run_fn)
 
         rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
-        # print(f"render_rays's weights shape {weights.shape}, weights.sum is {weights.sum(1).shape}, type(weights.sum) is {type(weights.sum(1))}")
+        print(f"@@@@ \n\
+                render_rays's weights shape {weights.shape}, \n\
+                weights.sum is {weights.sum(1).shape}, \n\
+                type(weights.sum) is {type(weights.sum(1))}")
 
     ret = {'rgb_map' : rgb_map, 'depth_map' : depth_map, 'acc_map' : acc_map, 'sparsity_loss': sparsity_loss, 'weight' : weights.sum(1)}
     if retraw:
