@@ -87,8 +87,27 @@ def render_rays(ray_batch,
                 raw_noise_std=0.,
                 verbose=False,
                 pytest=False,
-                use_viewdirs=None):
+                use_viewdirs=None,
+                ndc=False):
     
+    '''
+    render_kwargs_train = {
+        'network_query_fn' : network_query_fn,
+        'perturb' : args.perturb,
+        'N_importance' : args.N_importance,
+        'network_fine' : model_fine,
+        'N_samples' : args.N_samples,
+        'network_fn' : model,
+        'embed_fn': embed_fn,
+        'use_viewdirs' : args.use_viewdirs,
+        'white_bkgd' : args.white_bkgd,
+        'raw_noise_std' : args.raw_noise_std,
+        'ndc' : False,
+        'lindisp' : args.lindisp
+    }
+    '''    
+
+
     N_rays = ray_batch.shape[0]
     rays_o, rays_d = ray_batch[:,0:3], ray_batch[:,3:6] # [N_rays, 3] each
     viewdirs = ray_batch[:,-3:] if ray_batch.shape[-1] > 8 else None
@@ -327,7 +346,8 @@ def convert_sigma_samples_to_ply(
 
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
-        print(f"{render_kwargs}")
+        print(f"@@@@ \n\
+              render_kwargs : {render_kwargs}")
         all_ret = batchify_rays(rays, 1024*32, **render_kwargs)
         for k in all_ret:
             k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
