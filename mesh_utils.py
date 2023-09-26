@@ -79,7 +79,7 @@ def convert_sigma_samples_to_ply(
             [focal, 0, 0.5*W],
             [0, focal, 0.5*H],
             [0, 0, 1]
-        ]).astype(np.float32)
+        ])
 
     verts, faces, normals, values = skimage.measure.marching_cubes(
         input_3d_sigma_array, level=level, spacing=volume_size
@@ -179,11 +179,15 @@ def convert_sigma_samples_to_ply(
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
         i, j = torch.meshgrid(torch.linspace(0, W-1, W), torch.linspace(0, H-1, H))  # pytorch's meshgrid has indexing='ij'
+        print(f"###\n\
+                i.shape : {i.shape}\n\
+                j.shape : {j.shape}\n\
+                K.shape : {K.shape}")
         i = i.t()
         j = j.t()
         dirs = torch.stack([(i-K[0][2])/K[0][0], -(j-K[1][2])/K[1][1], -torch.ones_like(i)], -1)
         # Rotate ray directions from camera frame to the world frame
-        _rays_d = torch.sum(dirs.cpu().numpy()[..., np.newaxis, :] * poses[idx][:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
+        _rays_d = torch.sum(dirs[..., np.newaxis, :] * poses[idx][:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
         print(f"@@@   _rays_d shape : {_rays_d.shape}")
         rays_d = torch.reshape(_rays_d, [-1,3]).float()
         print(f"@@@   rays_d shape : {rays_d.shape}")
