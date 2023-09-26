@@ -173,7 +173,7 @@ def convert_sigma_samples_to_ply(
                                 vertices_image[i:i+remap_chunk, 1],
                                 interpolation=cv2.INTER_LINEAR)[:, 0]]
         colors = np.vstack(colors) # (N_vertices, 3)
-        print(f"colors shape : {colors.shape}") # (9482, 3)
+        #print(f"colors shape : {colors.shape}") # (9482, 3)
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
@@ -207,7 +207,7 @@ def convert_sigma_samples_to_ply(
         opacity = np.nan_to_num(opacity, 1)
             
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
-        non_occluded += opacity < 0.5
+        non_occluded += opacity < 0.2
 
         v_color_sum += colors * non_occluded
         non_occluded_sum += non_occluded
