@@ -69,6 +69,8 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, netchunk=1024*64):
 def batchify_rays(rays_flat, chunk=1024*32, **kwargs):
     """Render rays in smaller minibatches to avoid OOM.
     """
+    #print(f"rays_flat : {rays_flat}")
+    #print(f"rays_flat.shape : {rays_flat.shape}") # rays_flat.shape : torch.Size([230400, 11])
     all_ret = {}
     for i in range(0, rays_flat.shape[0], chunk):
         ret = render_rays(rays_flat[i:i+chunk], **kwargs)
@@ -240,8 +242,6 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
         with open(os.path.join(savedir, "test_psnrs_avg{:6.4f}_ssim_avg{:0.4f}_lpips_avg{:5.4f}.pkl".format(avg_psnr,avg_ssim,avg_lpips)), "wb") as fp:
             pickle.dump([psnrs,ssims,lpipss], fp)
 
-    print(f"rgbs의 shape은{rgbs.shape}")
-
     return rgbs, depths
 
 
@@ -396,8 +396,31 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
     # sigma_loss = sigma_sparsity_loss(raw[...,3])
     alpha = raw2alpha(raw[...,3] + noise, dists)  # [N_rays, N_samples]
     # weights = alpha * tf.math.cumprod(1.-alpha + 1e-10, -1, exclusive=True)
-    weights = alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
+    weights = \
+        alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
     rgb_map = torch.sum(weights[...,None] * rgb, -2)  # [N_rays, 3]
+    '''
+    # 32768 = 1024*32 로 chunk를 의미하는것 같다.
+    print(f"!!!!!!!!\
+        weights shape {weights.shape}") # [N_rays, N_samples]
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([32768, 64])
+    !!!!!!!!          weights shape torch.Size([32768, 192])
+    !!!!!!!!          weights shape torch.Size([1024, 64])
+    !!!!!!!!          weights shape torch.Size([1024, 192])
+    '''
+
 
     depth_map = torch.sum(weights * z_vals, -1) / torch.sum(weights, -1)
     disp_map = 1./torch.max(1e-10 * torch.ones_like(depth_map), depth_map)
@@ -464,7 +487,7 @@ def render_rays(ray_batch,
     rays_o, rays_d = ray_batch[:,0:3], ray_batch[:,3:6] # [N_rays, 3] each
     viewdirs = ray_batch[:,-3:] if ray_batch.shape[-1] > 8 else None
     bounds = torch.reshape(ray_batch[...,6:8], [-1,1,2])
-    near, far = bounds[...,0], bounds[...,1] # [-1,1]
+    near, far = bounds[...,0], bounds[...,1] # [-1,1] near) torch.Size([32768, 1]), torch.Size([32768, 1])
 
     t_vals = torch.linspace(0., 1., steps=N_samples)
     if not lindisp:
@@ -493,6 +516,9 @@ def render_rays(ray_batch,
     pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None] # [N_rays, N_samples, 3]
 
     raw = network_query_fn(pts, viewdirs, network_fn)
+    #print(f"raw : {raw}")
+    # print(f"raw.shape : {raw.shape}") # raw.shaepe : torch.Size([32768, 64, 4])
+    # print(f"@@@ network_fn : {type(network_fn)}") # @@@ network_fn : <class 'run_nerf_helpers.NeRFSmall'>
     rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 
     if N_importance > 0:
@@ -508,9 +534,62 @@ def render_rays(ray_batch,
 
         run_fn = network_fn if network_fine is None else network_fine
 #         raw = run_network(pts, fn=run_fn)
+        '''     
+        print(f"@@@ N_importance>0 @@@\n\
+                viewdirs : {viewdirs}, \n\
+                shape : {viewdirs.shape}")
+        @@@ N_importance>0 @@@
+        viewdirs : tensor([[ 0.6575,  0.6309, -0.4119],
+                           [ 0.6586,  0.6297, -0.4121],
+                           [ 0.6596,  0.6284, -0.4123],
+                            ...,
+                           [ 0.5944,  0.5900, -0.5465],
+                           [ 0.5954,  0.5887, -0.5467],
+                           [ 0.5964,  0.5875, -0.5470]]), 
+        shape : torch.Size([32768, 3])
+        '''
         raw = network_query_fn(pts, viewdirs, run_fn)
 
         rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
+        '''
+        print(f"@@@@ \n\
+                render_rays's weights shape {weights.shape}, \n\
+                weights.sum is {weights.sum(1).shape}, \n\
+                type(weights.sum) is {type(weights.sum(1))}")
+
+        @@@@ 
+                render_rays's weights shape torch.Size([32768, 192]), 
+                weights.sum is torch.Size([32768]), 
+                type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([32768, 192]), 
+                        weights.sum is torch.Size([32768]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([32768, 192]), 
+                        weights.sum is torch.Size([32768]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([32768, 192]), 
+                        weights.sum is torch.Size([32768]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([32768, 192]), 
+                        weights.sum is torch.Size([32768]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([32768, 192]), 
+                        weights.sum is torch.Size([32768]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([32768, 192]), 
+                        weights.sum is torch.Size([32768]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        @@@@ 
+                        render_rays's weights shape torch.Size([1024, 192]), 
+                        weights.sum is torch.Size([1024]), 
+                        type(weights.sum) is <class 'torch.Tensor'>
+        '''
 
     ret = {'rgb_map' : rgb_map, 'depth_map' : depth_map, 'acc_map' : acc_map, 'sparsity_loss': sparsity_loss}
     if retraw:
@@ -758,9 +837,9 @@ def train():
         if args.video_in != "":
              import colmap
              print(f"colmap return은 {colmap.run(args.video_in)}")
-        images, poses, render_poses, hwf, i_split, bounding_box = load_own_data(args.datadir, args.half_res, args.testskip)
+        images, poses, render_poses, hwf, i_split, bounding_box, imgs_path = load_own_data(args.datadir, args.half_res, args.testskip)
         args.bounding_box = bounding_box
-        print('Loaded blender', images.shape, render_poses.shape, hwf, args.datadir)
+        print('Loaded own data', images.shape, render_poses.shape, hwf, args.datadir)
         i_train, i_val, i_test = i_split
 
         near = 2.
@@ -973,6 +1052,8 @@ def train():
     psnr_list = []
     time_list = []
     metrics_list = []
+
+    print(f"images.shape : {images[i_train].shape}\n images.type : {type(images[i_train])}\n images.len : {len(images[i_train])}")
     
     start = start + 1
     time0 = time.time()
@@ -1067,7 +1148,10 @@ def train():
         for param_group in optimizer.param_groups:
             param_group['lr'] = new_lrate
         ################################
-
+        #print(f"@@@ i_train.shape : {i_train.shape}")
+        #print(f"@@@ poses.shape : {poses[i_train].cpu().numpy().shape}, type(poses) : {type(poses[i_train].cpu().numpy())}")
+        #print(f"@@@ imgs_path.shape {np.array(imgs_path)[i_train].shape}, imgs_path : {np.array(imgs_path)[5]}") # imgs_path.shape (64,)
+        #print(f"5th poses : {poses[5].cpu().numpy()}")
         t = time.time()-time0
         # print(f"Step: {global_step}, Loss: {loss}, Time: {dt}")
         #####           end            #####
@@ -1133,8 +1217,18 @@ def train():
             os.makedirs(root_path, exist_ok=True)
 
             with torch.no_grad():
-                generate_and_write_mesh(i, bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
-            print('Done, saving mesh at ', root_path,"Time : ")
+                generate_and_write_mesh(global_step, 
+                                        bounding_box, 
+                                        poses[i_train].cpu().numpy(), 
+                                        np.array(imgs_path)[i_train], 
+                                        hwf, 
+                                        num_pts, 
+                                        levels, 
+                                        args.chunk, 
+                                        device, 
+                                        root_path, 
+                                        **render_kwargs_train)
+            print('Done, saving mesh at ', root_path)
 
 
         if i%args.i_print==0:
