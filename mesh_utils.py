@@ -203,8 +203,7 @@ def convert_sigma_samples_to_ply(
             #print(f"@@@ raw : {raw}")
             weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
             # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
-        opacity = weights.cpu().numpy()[:, np.newaxis] # (N_vertices, 1)
-        print(f"opacity shape : {opacity.shape}")
+        opacity = weights.cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
         opacity = np.nan_to_num(opacity, 1)
             
 
