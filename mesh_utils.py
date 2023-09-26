@@ -178,13 +178,15 @@ def convert_sigma_samples_to_ply(
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
-        i, j = torch.meshgrid(torch.linspace(0, N_vertices-1, N_vertices), torch.linspace(0, N_vertices-1, N_vertices))  # pytorch's meshgrid has indexing='ij'
+        i, j = torch.meshgrid(torch.linspace(0, W-1, W), torch.linspace(0, H-1, H))  # pytorch's meshgrid has indexing='ij'
         i = i.t()
         j = j.t()
         dirs = torch.stack([(i-K[0][2])/K[0][0], -(j-K[1][2])/K[1][1], -torch.ones_like(i)], -1)
         # Rotate ray directions from camera frame to the world frame
-        rays_d = torch.sum(dirs[..., np.newaxis, :] * poses[idx][:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
-        print(f"rays_d shape : {rays_d.shape}")
+        _rays_d = torch.sum(dirs[..., np.newaxis, :] * poses[idx][:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
+        print(f"@@@   _rays_d shape : {_rays_d.shape}")
+        rays_d = torch.reshape(_rays_d, [-1,3]).float()
+        print(f"@@@   rays_d shape : {rays_d.shape}")
         # rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
         viewdirs = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
         viewdirs = torch.reshape(rays_d, [-1,3]).float()
