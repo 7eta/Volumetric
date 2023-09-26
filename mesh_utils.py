@@ -172,7 +172,7 @@ def convert_sigma_samples_to_ply(
         # print(f"### sh.shape : {sh}")
 
         with torch.no_grad():
-            raw = radiance_field(pts,rays_d,nerf_model)
+            raw = radiance_field(pts,rays_d.cuda(),nerf_model)
 
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
         # non_occluded += opacity < 0.2
