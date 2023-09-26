@@ -79,7 +79,7 @@ def convert_sigma_samples_to_ply(
             [focal, 0, 0.5*W],
             [0, focal, 0.5*H],
             [0, 0, 1]
-        ])
+        ]).astype(np.float32)
 
     verts, faces, normals, values = skimage.measure.marching_cubes(
         input_3d_sigma_array, level=level, spacing=volume_size
@@ -166,7 +166,7 @@ def convert_sigma_samples_to_ply(
         vertices_image[:, 1] = np.clip(vertices_image[:, 1], 0, H-1)    
 
         colors = []
-        remap_chunk = int(3e2)
+        remap_chunk = int(3e4)
         for i in range(0, N_vertices, remap_chunk):
             colors += [cv2.remap(image, 
                                 vertices_image[i:i+remap_chunk, 0],
@@ -174,6 +174,7 @@ def convert_sigma_samples_to_ply(
                                 interpolation=cv2.INTER_LINEAR)[:, 0]]
         colors = np.vstack(colors) # (N_vertices, 3)
         #print(f"colors shape : {colors.shape}") # (9482, 3)
+        print(f"colors : {colors}")
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
@@ -215,6 +216,8 @@ def convert_sigma_samples_to_ply(
             non_occluded_sum += non_occluded
 
     v_colors = v_color_sum/non_occluded_sum
+    print(f"v_colors : {v_colors} \n\
+          v_colors.shape : {v_colors.shape}")
     v_colors = v_colors.astype(np.uint8)
     v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
