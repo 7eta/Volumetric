@@ -531,9 +531,20 @@ def render_rays(ray_batch,
 
         run_fn = network_fn if network_fine is None else network_fine
 #         raw = run_network(pts, fn=run_fn)
+        '''     
         print(f"@@@ N_importance>0 @@@\n\
                 viewdirs : {viewdirs}, \n\
                 shape : {viewdirs.shape}")
+        @@@ N_importance>0 @@@
+        viewdirs : tensor([[ 0.6575,  0.6309, -0.4119],
+                           [ 0.6586,  0.6297, -0.4121],
+                           [ 0.6596,  0.6284, -0.4123],
+                            ...,
+                           [ 0.5944,  0.5900, -0.5465],
+                           [ 0.5954,  0.5887, -0.5467],
+                           [ 0.5964,  0.5875, -0.5470]]), 
+        shape : torch.Size([32768, 3])
+        '''
         raw = network_query_fn(pts, viewdirs, run_fn)
 
         rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
