@@ -146,7 +146,7 @@ def render(H, W, K, chunk=1024*32, rays=None, c2w=None, ndc=True,
         k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
         all_ret[k] = torch.reshape(all_ret[k], k_sh)
 
-    k_extract = ['rgb_map', 'depth_map', 'acc_map', 'weight']
+    k_extract = ['rgb_map', 'depth_map', 'acc_map']
     ret_list = [all_ret[k] for k in k_extract]
     ret_dict = {k : all_ret[k] for k in all_ret if k not in k_extract}
     return ret_list + [ret_dict]
@@ -167,7 +167,6 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
         os.makedirs(videodir+'/depths', exist_ok=True)
     rgbs = []
     depths = []
-    weights = []
     psnrs = []
     ssims = []
     t = time.time()
@@ -179,7 +178,6 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
         # normalize depth to [0,1]
         depth = (depth - near) / (far - near)
         depths.append(depth.cpu().numpy())
-        weights.append(weight.cpu().numpy())
                 
         if i==0:
             print(rgb.shape, depth.shape)
@@ -230,7 +228,6 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
 
     rgbs = np.stack(rgbs, 0)
     depths = np.stack(depths, 0)
-    weights = np.stack(weights, 0)
     if gt_imgs is not None and render_factor==0:
         avg_psnr = sum(psnrs)/len(psnrs)
         avg_ssim = sum(ssims)/len(ssims)
@@ -239,7 +236,7 @@ def render_path(iter, render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, 
         with open(os.path.join(savedir, "test_psnrs_avg{:0.2f}_ssim_avg{:0.4f}.pkl".format(avg_psnr,avg_ssim)), "wb") as fp:
             pickle.dump([psnrs,ssims], fp)
 
-    return rgbs, depths, weights
+    return rgbs, depths
 
 
 def create_nerf(args):
@@ -588,7 +585,7 @@ def render_rays(ray_batch,
                         type(weights.sum) is <class 'torch.Tensor'>
         '''
 
-    ret = {'rgb_map' : rgb_map, 'depth_map' : depth_map, 'acc_map' : acc_map, 'sparsity_loss': sparsity_loss, 'weight' : weights.sum(1)}
+    ret = {'rgb_map' : rgb_map, 'depth_map' : depth_map, 'acc_map' : acc_map, 'sparsity_loss': sparsity_loss}
     if retraw:
         ret['raw'] = raw
     if N_importance > 0:
@@ -956,7 +953,7 @@ def train():
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', render_poses.shape)
 
-            rgbs, _, _= render_path(global_step, render_poses, hwf, K, args.chunk, render_kwargs_test, gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
+            rgbs, _ = render_path(global_step, render_poses, hwf, K, args.chunk, render_kwargs_test, gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
             print('Done rendering', testsavedir)
             imageio.mimwrite(os.path.join(testsavedir, 'video.mp4'), to8b(rgbs), fps=30, quality=8)
 
@@ -1142,8 +1139,8 @@ def train():
             videosavedir = os.path.join(basedir, expname, 'video_frame_{:06d}'.format(i))
             # Turn on testing mode
             with torch.no_grad():
-                rgbs, disps, _weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_test, videodir=videosavedir)
-            print('Done, saving', rgbs.shape, disps.shape, _weights.shape)
+                rgbs, disps = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_test, videodir=videosavedir)
+            print('Done, saving', rgbs.shape, disps.shape)
             moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
             imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=4)
             imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=4)
@@ -1178,8 +1175,6 @@ def train():
             os.makedirs(root_path, exist_ok=True)
 
             with torch.no_grad():
-                # _, _, _weights = render_path(i, render_poses, hwf, K, args.chunk, render_kwargs_train, videodir=videosavedir)
-                print(f"weights shape {_weights.shape}")
                 generate_and_write_mesh(global_step, 
                                         bounding_box, 
                                         poses[i_train].cpu().numpy(), 

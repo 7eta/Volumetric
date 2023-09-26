@@ -207,7 +207,7 @@ def convert_sigma_samples_to_ply(
         opacity = np.nan_to_num(opacity, 1)
             
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
-        non_occluded += opacity < 0.2
+        non_occluded += opacity < 0.5
 
         v_color_sum += colors * non_occluded
         non_occluded_sum += non_occluded
