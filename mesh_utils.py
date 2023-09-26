@@ -213,9 +213,9 @@ def convert_sigma_samples_to_ply(
             z_samples = z_samples.detach()
             z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
 
-            pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None]
+            pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
             raw = radiance_field(pts, viewdirs.cuda(), nerf_model)
-            
+
             weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
 
             opacity = weights.sum(1).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
