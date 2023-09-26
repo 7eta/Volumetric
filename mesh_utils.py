@@ -190,7 +190,8 @@ def convert_sigma_samples_to_ply(
 
 
         t_vals = torch.linspace(0., 1., steps=64).cuda()
-        z_vals = 1./(1./near.cuda() * (1.-t_vals) + 1./far.cuda() * (t_vals))
+        #z_vals = 1./(1./near.cuda() * (1.-t_vals) + 1./far.cuda() * (t_vals)) #결과 비교하기..
+        z_vals = near.cuda() * (1.-t_vals) + far.cuda() * (t_vals)
         z_vals = z_vals.expand([N_vertices, 64])
 
         pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
