@@ -20,7 +20,33 @@ import pdb
 from PIL import Image
 from run_nerf_helpers import *
 
+def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=False):
+    """Transforms model's predictions to semantically meaningful values.
+    Args:
+        raw: [num_rays, num_samples along ray, 4]. Prediction from model.
+        z_vals: [num_rays, num_samples along ray]. Integration time.
+        rays_d: [num_rays, 3]. Direction of each ray.
+    Returns:
+        rgb_map: [num_rays, 3]. Estimated RGB color of a ray.
+        disp_map: [num_rays]. Disparity map. Inverse of depth map.
+        acc_map: [num_rays]. Sum of weights along each ray.
+        weights: [num_rays, num_samples]. Weights assigned to each sampled color.
+        depth_map: [num_rays]. Estimated distance to object.
+    """
+    raw2alpha = lambda raw, dists, act_fn=F.relu: 1.-torch.exp(-act_fn(raw)*dists)
 
+    dists = z_vals[...,1:] - z_vals[...,:-1]
+    dists = torch.cat([dists, torch.Tensor([1e10]).expand(dists[...,:1].shape)], -1)  # [N_rays, N_samples]
+
+    dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
+
+    # sigma_loss = sigma_sparsity_loss(raw[...,3])
+    alpha = raw2alpha(raw[...,3] + noise, dists)  # [N_rays, N_samples]
+    # weights = alpha * tf.math.cumprod(1.-alpha + 1e-10, -1, exclusive=True)
+    weights = \
+        alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
+
+    return weights
 
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
@@ -173,6 +199,12 @@ def convert_sigma_samples_to_ply(
 
         with torch.no_grad():
             raw = radiance_field(pts,rays_d.cuda(),nerf_model)
+            print(f"@@@ raw.shape : {raw.shape}")
+            print(f"@@@ raw : {raw}")
+            weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+            print(f"@@@ weights : {weights.shape}")
+            
+
 
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
         # non_occluded += opacity < 0.2
