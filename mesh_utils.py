@@ -46,7 +46,7 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
     weights = \
         alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
 
-    return weights
+    return weights.sum(1)
 
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
@@ -198,16 +198,19 @@ def convert_sigma_samples_to_ply(
         # print(f"### sh.shape : {sh}")
 
         with torch.no_grad():
-            raw = radiance_field(pts,rays_d.cuda(),nerf_model)
+            raw = radiance_field(pts, rays_d.cuda(), nerf_model)
             #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
             #print(f"@@@ raw : {raw}")
             weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
-            print(f"@@@ weights : {weights.shape}")
+            # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
+        opacity = weights.cpu().numpy()[:, np.newaxis] # (N_vertices, 1)
+        print(f"opacity shape : {opacity.shape}")
+        opacity = np.nan_to_num(opacity, 1)
             
 
 
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
-        # non_occluded += opacity < 0.2
+        non_occluded += opacity < 0.2
 
         v_color_sum += colors * non_occluded
         non_occluded_sum += non_occluded
