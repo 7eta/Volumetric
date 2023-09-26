@@ -166,19 +166,20 @@ def convert_sigma_samples_to_ply(
         vertices_image[:, 1] = np.clip(vertices_image[:, 1], 0, H-1)    
 
         colors = []
-        remap_chunk = int(3e4)
+        remap_chunk = int(3e2)
         for i in range(0, N_vertices, remap_chunk):
             colors += [cv2.remap(image, 
                                 vertices_image[i:i+remap_chunk, 0],
                                 vertices_image[i:i+remap_chunk, 1],
                                 interpolation=cv2.INTER_LINEAR)[:, 0]]
         colors = np.vstack(colors) # (N_vertices, 3)
-        print(f"colors shape : {colors.shape}") # (9482, 3)
+        #print(f"colors shape : {colors.shape}") # (9482, 3)
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
         rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
         rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
+        viewdirs = torch.reshape(rays_d, [-1,3]).float()
         near = np.array([2.0, 6.0]).min() * torch.ones_like(rays_o[:, :1])
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
@@ -189,7 +190,8 @@ def convert_sigma_samples_to_ply(
 
 
         t_vals = torch.linspace(0., 1., steps=64).cuda()
-        z_vals = 1./(1./near.cuda() * (1.-t_vals) + 1./far.cuda() * (t_vals))
+        #z_vals = 1./(1./near.cuda() * (1.-t_vals) + 1./far.cuda() * (t_vals)) #결과 비교하기..
+        z_vals = near.cuda() * (1.-t_vals) + far.cuda() * (t_vals)
         z_vals = z_vals.expand([N_vertices, 64])
 
         pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
@@ -198,19 +200,19 @@ def convert_sigma_samples_to_ply(
         # print(f"### sh.shape : {sh}")
 
         with torch.no_grad():
-            raw = radiance_field(pts, rays_d.cuda(), nerf_model)
+            raw = radiance_field(pts, viewdirs.cuda(), nerf_model)
             #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
             #print(f"@@@ raw : {raw}")
             weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
             # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
-        opacity = weights.cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
-        opacity = np.nan_to_num(opacity, 1)
-            
-        non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
-        non_occluded += opacity < 0.5
+            opacity = weights.cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
+            opacity = np.nan_to_num(opacity, 1)
+                
+            non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
+            non_occluded += opacity < 0.2
 
-        v_color_sum += colors * non_occluded
-        non_occluded_sum += non_occluded
+            v_color_sum += colors * non_occluded
+            non_occluded_sum += non_occluded
 
     v_colors = v_color_sum/non_occluded_sum
     v_colors = v_colors.astype(np.uint8)
