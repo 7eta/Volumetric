@@ -162,9 +162,9 @@ def convert_sigma_samples_to_ply(
         # print(f"!!! rays.shape : {rays.shape}") # !!! rays.shape : torch.Size([9482, 8])
 
 
-        t_vals = torch.linspace(0., 1., steps=32).cuda()
+        t_vals = torch.linspace(0., 1., steps=64).cuda()
         z_vals = 1./(1./near.cuda() * (1.-t_vals) + 1./far.cuda() * (t_vals))
-        z_vals = z_vals.expand([N_vertices, 32])
+        z_vals = z_vals.expand([N_vertices, 64])
 
         pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
         
@@ -177,7 +177,7 @@ def convert_sigma_samples_to_ply(
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
         # non_occluded += opacity < 0.2
 
-        v_color_sum += colors * non_occluded * 10
+        v_color_sum += colors * non_occluded
         non_occluded_sum += non_occluded
 
     v_colors = v_color_sum/non_occluded_sum

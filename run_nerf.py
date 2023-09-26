@@ -531,6 +531,9 @@ def render_rays(ray_batch,
 
         run_fn = network_fn if network_fine is None else network_fine
 #         raw = run_network(pts, fn=run_fn)
+        print(f"@@@ N_importance>0 @@@\n\
+                viewdirs : {viewdirs}, \n\
+                shape : {viewdirs.shape}")
         raw = network_query_fn(pts, viewdirs, run_fn)
 
         rgb_map, disp_map, acc_map, weights, depth_map, sparsity_loss = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
