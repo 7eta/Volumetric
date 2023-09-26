@@ -39,7 +39,7 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
     dists = torch.cat([dists, torch.Tensor([1e10]).expand(dists[...,:1].shape)], -1)  # [N_rays, N_samples]
 
     dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
-
+    noise = 0.
     # sigma_loss = sigma_sparsity_loss(raw[...,3])
     alpha = raw2alpha(raw[...,3] + noise, dists)  # [N_rays, N_samples]
     # weights = alpha * tf.math.cumprod(1.-alpha + 1e-10, -1, exclusive=True)
@@ -199,8 +199,8 @@ def convert_sigma_samples_to_ply(
 
         with torch.no_grad():
             raw = radiance_field(pts,rays_d.cuda(),nerf_model)
-            print(f"@@@ raw.shape : {raw.shape}")
-            print(f"@@@ raw : {raw}")
+            #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
+            #print(f"@@@ raw : {raw}")
             weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
             print(f"@@@ weights : {weights.shape}")
             
