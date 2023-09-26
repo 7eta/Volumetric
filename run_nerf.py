@@ -712,7 +712,7 @@ def config_parser():
                         help='will take every 1/N images as LLFF test set, paper uses 8')
 
     # logging/saving options
-    parser.add_argument("--n_iters", type=int, default=1000,
+    parser.add_argument("--n_iters", type=int, default=5000,
                         help='number of iteration')
     parser.add_argument("--i_print",   type=int, default=100,
                         help='frequency of console printout and metric loggin')
