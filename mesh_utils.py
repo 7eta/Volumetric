@@ -166,7 +166,7 @@ def convert_sigma_samples_to_ply(
         vertices_image[:, 1] = np.clip(vertices_image[:, 1], 0, H-1)    
 
         colors = []
-        remap_chunk = int(3e4)
+        remap_chunk = int(3e2)
         for i in range(0, N_vertices, remap_chunk):
             colors += [cv2.remap(image, 
                                 vertices_image[i:i+remap_chunk, 0],
