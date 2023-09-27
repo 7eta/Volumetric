@@ -90,8 +90,8 @@ def convert_sigma_samples_to_ply(
     vertices_[:, 2] = voxel_grid_origin[2]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
 
-    face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
-    face['vertex_indices'] = triangles
+    face = np.empty(len(imsi_triangles), dtype=[('vertex_indices', 'i4', (3,))])
+    face['vertex_indices'] = imsi_triangles
 
     plyfile.PlyData([plyfile.PlyElement.describe(vertices_[:, 0], 'vertex'), 
                      plyfile.PlyElement.describe(face, 'face')]).write(ply_filename_out)
