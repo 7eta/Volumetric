@@ -205,8 +205,8 @@ def convert_sigma_samples_to_ply(
         #print(f"@@@   rays_d shape : {rays_d.shape}")   # torch.Size([291600, 3])
         rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
         rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
-        #viewdirs = torch.reshape(rays_d, [-1,3]).float()
-        dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor)
+        dummy_viewdirs = torch.reshape(rays_d, [-1,3]).float()
+        #dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor)
         near = np.array([2.0, 6.0]).min()  * torch.ones_like(rays_o[:, :1])
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
