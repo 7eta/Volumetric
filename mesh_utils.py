@@ -38,7 +38,8 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
     dists = z_vals[...,1:] - z_vals[...,:-1]
     dists = torch.cat([dists, torch.Tensor([1e10]).expand(dists[...,:1].shape)], -1)  # [N_rays, N_samples]
 
-    dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
+    # dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
+    dists = dists * torch.norm(rays_d.unsqueeze(1), dim=-1)
     noise = 0.
     # sigma_loss = sigma_sparsity_loss(raw[...,3])
     alpha = raw2alpha(raw[...,3] + noise, dists)  # [N_rays, N_samples]
@@ -178,21 +179,20 @@ def convert_sigma_samples_to_ply(
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
-        _, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
+        #_, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
         # Rotate ray directions from camera frame to the world frame
-        print(f"@@@   _rays_d shape : {_rays_d.shape}")
-        rays_d = torch.reshape(_rays_d, [-1,3]).float()
-        print(f"@@@   rays_d shape : {rays_d.shape}")
-        rays_d = rays_d.expand(N_vertices, 3)
-        # rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
+        #print(f"@@@   _rays_d shape : {_rays_d.shape}") # torch.Size([540, 540, 3])
+        #rays_d = torch.reshape(_rays_d, [-1,3]).float() #
+        #print(f"@@@   rays_d shape : {rays_d.shape}")   # torch.Size([291600, 3])
+        rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
         viewdirs = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
         viewdirs = torch.reshape(rays_d, [-1,3]).float()
-        near = np.array([2.0, 6.0]).min() * torch.ones_like(rays_o[:, :1])
+        near = 3.0 * torch.ones_like(rays_o[:, :1])
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
         ## opacity along the path from camera origin to the vertices
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
-        rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
+        # rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
         # print(f"!!! rays.shape : {rays.shape}") # !!! rays.shape : torch.Size([9482, 8])
 
 
@@ -235,7 +235,7 @@ def convert_sigma_samples_to_ply(
 
     v_colors = v_color_sum/non_occluded_sum
     # print(f"v_colors : {v_colors} \n\
-    #      v_colors.shape : {v_colors.shape}") # v_colors.shape : (179118, 3)
+    #      v_colors.shape : {v_colors.shape}") # v_colors.shape : (N_vertices, 3)
     v_colors = v_colors.astype(np.uint8)
     v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
