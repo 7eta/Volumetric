@@ -1213,7 +1213,7 @@ def train():
        
         if i%args.i_mesh==0 and i > 0:
             mesh_t0 = time.time()
-            levels = [5, 10] # [5, 10, 20]
+            levels = [10] # [5, 10, 20]
             print(f"Generating mesh at levels {levels}")
             num_pts = args.mesh_res
             root_path = os.path.join(basedir, expname, 'mash_file')
