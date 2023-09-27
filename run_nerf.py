@@ -1213,7 +1213,7 @@ def train():
        
         if i%args.i_mesh==0 and i > 0:
             mesh_t0 = time.time()
-            levels = [5, 10, 20]
+            levels = [10] # [5, 10, 20]
             print(f"Generating mesh at levels {levels}")
             num_pts = args.mesh_res
             root_path = os.path.join(basedir, expname, 'mash_file')
@@ -1222,8 +1222,8 @@ def train():
             with torch.no_grad():
                 generate_and_write_mesh(global_step, 
                                         bounding_box, 
-                                        poses[i_test].cpu().numpy(), 
-                                        np.array(imgs_path)[i_test], 
+                                        poses.cpu().numpy(), 
+                                        np.array(imgs_path), 
                                         hwf, 
                                         num_pts, 
                                         levels, 
