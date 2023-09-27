@@ -81,7 +81,22 @@ def convert_sigma_samples_to_ply(
             [0, focal, 0.5*H],
             [0, 0, 1]
         ])
+    
+    imsi_vertices, imsi_triangles = mcubes.marching_cubes(input_3d_sigma_array, 20)
 
+    vertices_ = (imsi_vertices/256).astype(np.float32)
+    vertices_[:, 0] = voxel_grid_origin[0]
+    vertices_[:, 1] = voxel_grid_origin[1]
+    vertices_[:, 2] = voxel_grid_origin[2]
+    vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
+
+    face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
+    face['vertex_indices'] = triangles
+
+    plyfile.PlyData([plyfile.PlyElement.describe(vertices_[:, 0], 'vertex'), 
+                     plyfile.PlyElement.describe(face, 'face')]).write(ply_filename_out)
+    
+    '''
     verts, faces, normals, values = skimage.measure.marching_cubes(
         input_3d_sigma_array, level=level, spacing=volume_size
     )
@@ -124,6 +139,7 @@ def convert_sigma_samples_to_ply(
     ply_data = plyfile.PlyData([el_verts, el_faces])
     print("saving mesh to %s" % str(ply_filename_out))
     ply_data.write(ply_filename_out)
+    '''
 
     # remove noise in the mesh by keeping only the biggest cluster
     print('Removing noise ...')
