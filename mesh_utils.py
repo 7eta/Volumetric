@@ -185,8 +185,9 @@ def convert_sigma_samples_to_ply(
         #rays_d = torch.reshape(_rays_d, [-1,3]).float() #
         #print(f"@@@   rays_d shape : {rays_d.shape}")   # torch.Size([291600, 3])
         rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
-        viewdirs = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
-        viewdirs = torch.reshape(rays_d, [-1,3]).float()
+        #viewdirs = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
+        #viewdirs = torch.reshape(rays_d, [-1,3]).float()
+        dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor).to(device)
         near = np.array([2.0, 6.0]).min()  * torch.ones_like(rays_o[:, :1])
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
@@ -207,7 +208,7 @@ def convert_sigma_samples_to_ply(
         # print(f"### sh.shape : {sh}")
 
         with torch.no_grad():
-            raw = radiance_field(pts, viewdirs.cuda(), nerf_model)
+            raw = radiance_field(pts, dummy_viewdirs.cuda(), nerf_model)
             #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
             #print(f"@@@ raw : {raw}")
             weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
@@ -220,7 +221,7 @@ def convert_sigma_samples_to_ply(
             z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
 
             pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
-            raw = radiance_field(pts, viewdirs.cuda(), nerf_model)
+            raw = radiance_field(pts, dummy_viewdirs.cuda(), nerf_model)
 
             weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
 
