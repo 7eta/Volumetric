@@ -185,7 +185,7 @@ def convert_sigma_samples_to_ply(
         #rays_d = torch.reshape(_rays_d, [-1,3]).float() #
         #print(f"@@@   rays_d shape : {rays_d.shape}")   # torch.Size([291600, 3])
         rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
-        #viewdirs = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
+        rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
         #viewdirs = torch.reshape(rays_d, [-1,3]).float()
         dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor)
         near = np.array([2.0, 6.0]).min()  * torch.ones_like(rays_o[:, :1])
@@ -198,8 +198,8 @@ def convert_sigma_samples_to_ply(
 
 
         t_vals = torch.linspace(0., 1., steps=64).cuda()
-        #z_vals = 1./(1./near.cuda() * (1.-t_vals) + 1./far.cuda() * (t_vals)) #결과 비교하기..
-        z_vals = near.cuda() * (1.-t_vals) + far.cuda() * (t_vals)
+        z_vals = 1./(1./near.cuda() * (1.-t_vals) + 1./far.cuda() * (t_vals)) #결과 비교하기..
+        #z_vals = near.cuda() * (1.-t_vals) + far.cuda() * (t_vals)
         z_vals = z_vals.expand([N_vertices, 64])
 
         pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
