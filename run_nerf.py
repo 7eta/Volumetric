@@ -1222,8 +1222,8 @@ def train():
             with torch.no_grad():
                 generate_and_write_mesh(global_step, 
                                         bounding_box, 
-                                        poses.cpu().numpy(), 
-                                        np.array(imgs_path), 
+                                        poses[i_test].cpu().numpy(), 
+                                        np.array(imgs_path[i_test]), 
                                         hwf, 
                                         num_pts, 
                                         levels, 

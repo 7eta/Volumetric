@@ -187,7 +187,7 @@ def convert_sigma_samples_to_ply(
         rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
         viewdirs = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
         viewdirs = torch.reshape(rays_d, [-1,3]).float()
-        near = 1.0 * torch.ones_like(rays_o[:, :1])
+        near = np.array([2.0, 6.0]).min()  * torch.ones_like(rays_o[:, :1])
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
         ## opacity along the path from camera origin to the vertices
