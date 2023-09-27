@@ -84,7 +84,7 @@ def convert_sigma_samples_to_ply(
             [0, 0, 1]
         ])
     
-    imsi_vertices, imsi_triangles = mcubes.marching_cubes(input_3d_sigma_array, 20)
+    imsi_vertices, imsi_triangles = mcubes.marching_cubes(input_3d_sigma_array, 10)
 
     vertices_ = (imsi_vertices/256).astype(np.float32)
     vertices_[:, 0] = (bb_max[1]-bb_min[1]) * vertices_[:, 1] + bb_min[1]
