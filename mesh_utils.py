@@ -52,6 +52,8 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
     voxel_grid_origin,
+    bb_min,
+    bb_max,
     device,
     imgs_path,
     poses,
@@ -85,9 +87,9 @@ def convert_sigma_samples_to_ply(
     imsi_vertices, imsi_triangles = mcubes.marching_cubes(input_3d_sigma_array, 20)
 
     vertices_ = (imsi_vertices/256).astype(np.float32)
-    vertices_[:, 0] = voxel_grid_origin[0]
-    vertices_[:, 1] = voxel_grid_origin[1]
-    vertices_[:, 2] = voxel_grid_origin[2]
+    vertices_[:, 0] = (bb_max[1]-bb_min[1]) * vertices_[:, 1] + bb_min[1]
+    vertices_[:, 1] = (bb_max[0]-bb_min[0]) * vertices_[:, 0] + bb_min[0]
+    vertices_[:, 2] = (bb_max[2]-bb_min[2]) * vertices_[:, 2] + bb_min[2]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
 
     face = np.empty(len(imsi_triangles), dtype=[('vertex_indices', 'i4', (3,))])
@@ -95,6 +97,7 @@ def convert_sigma_samples_to_ply(
 
     plyfile.PlyData([plyfile.PlyElement.describe(vertices_[:, 0], 'vertex'), 
                      plyfile.PlyElement.describe(face, 'face')]).write(ply_filename_out)
+    print("semi-Done.. ")
     
     '''
     verts, faces, normals, values = skimage.measure.marching_cubes(
@@ -146,7 +149,7 @@ def convert_sigma_samples_to_ply(
     mesh = o3d.io.read_triangle_mesh(ply_filename_out)
     idxs, count, _ = mesh.cluster_connected_triangles()
     max_cluster_idx = np.argmax(count)
-    triangles_to_remove = [i for i in range(len(faces_tuple)) if idxs[i] != max_cluster_idx]
+    triangles_to_remove = [i for i in range(len(face)) if idxs[i] != max_cluster_idx]
     mesh.remove_triangles_by_index(triangles_to_remove)
     mesh.remove_unreferenced_vertices()
     print(f'Mesh has {len(mesh.vertices)/1e6:.2f} M vertices and {len(mesh.triangles)/1e6:.2f} M faces.')
@@ -356,6 +359,8 @@ def generate_and_write_mesh(i,
             sizes = (abs(bounding_box[1] - bounding_box[0]).cpu()).tolist()
             convert_sigma_samples_to_ply(input_sigma_arr, 
                                          list(bb_min), 
+                                         bb_min,
+                                         bb_max,
                                          device, 
                                          imgs_path, 
                                          poses, 
