@@ -1223,7 +1223,7 @@ def train():
                 generate_and_write_mesh(global_step, 
                                         bounding_box, 
                                         poses[i_test].cpu().numpy(), 
-                                        np.array(imgs_path[i_test]), 
+                                        np.array(imgs_path)[i_test], 
                                         hwf, 
                                         num_pts, 
                                         levels, 
