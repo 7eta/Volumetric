@@ -52,8 +52,6 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
     voxel_grid_origin,
-    bb_min,
-    bb_max,
     device,
     imgs_path,
     poses,
@@ -83,23 +81,7 @@ def convert_sigma_samples_to_ply(
             [0, focal, 0.5*H],
             [0, 0, 1]
         ])
-    
-    imsi_vertices, imsi_triangles = mcubes.marching_cubes(input_3d_sigma_array, 10)
 
-    vertices_ = (imsi_vertices/256).astype(np.float32)
-    vertices_[:, 0] = (bb_max[1]-bb_min[1]) * vertices_[:, 1] + bb_min[1]
-    vertices_[:, 1] = (bb_max[0]-bb_min[0]) * vertices_[:, 0] + bb_min[0]
-    vertices_[:, 2] = (bb_max[2]-bb_min[2]) * vertices_[:, 2] + bb_min[2]
-    vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
-
-    face = np.empty(len(imsi_triangles), dtype=[('vertex_indices', 'i4', (3,))])
-    face['vertex_indices'] = imsi_triangles
-
-    plyfile.PlyData([plyfile.PlyElement.describe(vertices_[:, 0], 'vertex'), 
-                     plyfile.PlyElement.describe(face, 'face')]).write(ply_filename_out)
-    print("semi-Done.. ")
-    
-    '''
     verts, faces, normals, values = skimage.measure.marching_cubes(
         input_3d_sigma_array, level=level, spacing=volume_size
     )
@@ -142,14 +124,13 @@ def convert_sigma_samples_to_ply(
     ply_data = plyfile.PlyData([el_verts, el_faces])
     print("saving mesh to %s" % str(ply_filename_out))
     ply_data.write(ply_filename_out)
-    '''
 
     # remove noise in the mesh by keeping only the biggest cluster
     print('Removing noise ...')
     mesh = o3d.io.read_triangle_mesh(ply_filename_out)
     idxs, count, _ = mesh.cluster_connected_triangles()
     max_cluster_idx = np.argmax(count)
-    triangles_to_remove = [i for i in range(len(face)) if idxs[i] != max_cluster_idx]
+    triangles_to_remove = [i for i in range(len(faces_tuple)) if idxs[i] != max_cluster_idx]
     mesh.remove_triangles_by_index(triangles_to_remove)
     mesh.remove_unreferenced_vertices()
     print(f'Mesh has {len(mesh.vertices)/1e6:.2f} M vertices and {len(mesh.triangles)/1e6:.2f} M faces.')
@@ -205,8 +186,8 @@ def convert_sigma_samples_to_ply(
         #print(f"@@@   rays_d shape : {rays_d.shape}")   # torch.Size([291600, 3])
         rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
         rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
-        dummy_viewdirs = torch.reshape(rays_d, [-1,3]).float()
-        #dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor)
+        #viewdirs = torch.reshape(rays_d, [-1,3]).float()
+        dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor)
         near = np.array([2.0, 6.0]).min()  * torch.ones_like(rays_o[:, :1])
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
@@ -259,11 +240,12 @@ def convert_sigma_samples_to_ply(
     v_colors = v_colors.astype(np.uint8)
     v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
+    print(f" @@@ vertices : {vertices_}")
     vertex_all = np.empty(N_vertices, vertices_.dtype.descr+v_colors.dtype.descr)
     for prop in vertices_.dtype.names:
-        vertex_all[prop] = vertices_[prop][:,0]
+        vertex_all[prop] = vertices_[prop][:, 0]
     for prop in v_colors.dtype.names:
-        vertex_all[prop] = v_colors[prop][:,0]
+        vertex_all[prop] = v_colors[prop][:, 0]
         
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = triangles
@@ -359,8 +341,6 @@ def generate_and_write_mesh(i,
             sizes = (abs(bounding_box[1] - bounding_box[0]).cpu()).tolist()
             convert_sigma_samples_to_ply(input_sigma_arr, 
                                          list(bb_min), 
-                                         bb_min,
-                                         bb_max,
                                          device, 
                                          imgs_path, 
                                          poses, 
