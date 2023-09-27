@@ -239,9 +239,10 @@ def convert_sigma_samples_to_ply(
     v_colors = v_colors.astype(np.uint8)
     v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
-    vertex_all = np.empty(N_vertices, vertices_.dtype.descr+v_colors.dtype.descr)
-    for prop in vertices_.dtype.names:
-        vertex_all[prop] = vertices_[prop][:, 0]
+    #vertex_all = np.empty(N_vertices, vertices_.dtype.descr+v_colors.dtype.descr)
+    vertex_all = np.empty(N_vertices, v_colors.dtype.descr)
+    #for prop in vertices_.dtype.names:
+    #    vertex_all[prop] = vertices_[prop][:, 0]
     for prop in v_colors.dtype.names:
         vertex_all[prop] = v_colors[prop][:, 0]
         
