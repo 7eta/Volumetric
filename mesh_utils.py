@@ -185,7 +185,7 @@ def convert_sigma_samples_to_ply(
                 K.shape : {K.shape}")
         i = i.t()
         j = j.t()
-        dirs = torch.stack([(i-K[0][2])/K[0][0], -(j-K[1][2])/K[1][1], -torch.ones_like(i)], -1)
+        dirs = torch.stack([(i.cpu().numpy()-K[0][2])/K[0][0], -(j.cpu().numpy()-K[1][2])/K[1][1], -torch.ones_like(i)], -1)
         # Rotate ray directions from camera frame to the world frame
         _rays_d = torch.sum(dirs[..., np.newaxis, :] * poses[idx][:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
         print(f"@@@   _rays_d shape : {_rays_d.shape}")
