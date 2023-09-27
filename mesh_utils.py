@@ -46,7 +46,7 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
     weights = \
         alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
 
-    return weights.sum(1)
+    return weights
 
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
@@ -166,7 +166,7 @@ def convert_sigma_samples_to_ply(
         vertices_image[:, 1] = np.clip(vertices_image[:, 1], 0, H-1)    
 
         colors = []
-        remap_chunk = int(3e2)
+        remap_chunk = int(3e4)
         for i in range(0, N_vertices, remap_chunk):
             colors += [cv2.remap(image, 
                                 vertices_image[i:i+remap_chunk, 0],
@@ -174,11 +174,18 @@ def convert_sigma_samples_to_ply(
                                 interpolation=cv2.INTER_LINEAR)[:, 0]]
         colors = np.vstack(colors) # (N_vertices, 3)
         #print(f"colors shape : {colors.shape}") # (9482, 3)
+        # print(f"colors : {colors}") -> 
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
-        rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
-        rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
+        _, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
+        # Rotate ray directions from camera frame to the world frame
+        print(f"@@@   _rays_d shape : {_rays_d.shape}")
+        rays_d = torch.reshape(_rays_d, [-1,3]).float()
+        print(f"@@@   rays_d shape : {rays_d.shape}")
+        rays_d = rays_d.expand(N_vertices, 3)
+        # rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
+        viewdirs = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
         viewdirs = torch.reshape(rays_d, [-1,3]).float()
         near = np.array([2.0, 6.0]).min() * torch.ones_like(rays_o[:, :1])
         # _near = near.cuda()
@@ -205,7 +212,19 @@ def convert_sigma_samples_to_ply(
             #print(f"@@@ raw : {raw}")
             weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
             # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
-            opacity = weights.cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
+            
+            ### importance 추가하기..
+            z_vals_mid = .5 * (z_vals[...,1:] + z_vals[...,:-1])
+            z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], 64, det=False, pytest=False)
+            z_samples = z_samples.detach()
+            z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
+
+            pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
+            raw = radiance_field(pts, viewdirs.cuda(), nerf_model)
+
+            weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+
+            opacity = weights.sum(1).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
             opacity = np.nan_to_num(opacity, 1)
                 
             non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
@@ -215,16 +234,20 @@ def convert_sigma_samples_to_ply(
             non_occluded_sum += non_occluded
 
     v_colors = v_color_sum/non_occluded_sum
+    # print(f"v_colors : {v_colors} \n\
+    #      v_colors.shape : {v_colors.shape}") # v_colors.shape : (179118, 3)
     v_colors = v_colors.astype(np.uint8)
     v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
     vertex_all = np.empty(N_vertices, vertices_.dtype.descr+v_colors.dtype.descr)
     for prop in vertices_.dtype.names:
-        vertex_all[prop] = vertices_[prop][:,0]
+        vertex_all[prop] = vertices_[prop][:, 0]
     for prop in v_colors.dtype.names:
         vertex_all[prop] = v_colors[prop][:, 0]
+        
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = triangles
+
     _el_verts = plyfile.PlyElement.describe(vertex_all, "vertex")
     _el_faces = plyfile.PlyElement.describe(face, "face")
     _ply_data = plyfile.PlyData([_el_verts, _el_faces])
