@@ -89,8 +89,8 @@ def convert_sigma_samples_to_ply(
     # transform from voxel coordinates to camera coordinates
     # note x and y are flipped in the output of marching_cubes
     mesh_points = np.zeros_like(verts)
-    mesh_points[:, 0] = voxel_grid_origin[0] + verts[:, 0]
-    mesh_points[:, 1] = voxel_grid_origin[1] + verts[:, 1]
+    mesh_points[:, 0] = voxel_grid_origin[1] + verts[:, 1]
+    mesh_points[:, 1] = voxel_grid_origin[0] + verts[:, 0]
     mesh_points[:, 2] = voxel_grid_origin[2] + verts[:, 2]
 
     # apply additional offset and scale
@@ -188,7 +188,7 @@ def convert_sigma_samples_to_ply(
         rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
         #viewdirs = torch.reshape(rays_d, [-1,3]).float()
         dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor)
-        near = np.array([2.0, 6.0]).min()  * torch.ones_like(rays_o[:, :1])
+        near = 1.0  * torch.ones_like(rays_o[:, :1])
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
         ## opacity along the path from camera origin to the vertices
@@ -240,23 +240,17 @@ def convert_sigma_samples_to_ply(
     v_colors = v_colors.astype(np.uint8)
     v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
-    print(f" @@@ vertices : {vertices_.dtype}\n\
-            @@@ vertices.name : {vertices_.dtype.names}")
     vertex_all = np.empty(N_vertices, vertices_.dtype.descr+v_colors.dtype.descr)
     for prop in vertices_.dtype.names:
         vertex_all[prop] = vertices_[prop][:,0]
     for prop in v_colors.dtype.names:
-        vertex_all[prop] = v_colors[prop][:,0]
-
-
-    aaa = np.zeros((N_vertices,), dtype=[("x", "f4"), ("y", "f4"), ("z", "f4"), ('red', 'u1'), ('green', 'u1'), ('blue', 'u1')])
-    for i in range(0, N_vertices):
-        aaa[i] = tuple(vertex_all[i, :])
+        vertex_all[prop] = v_colors[prop][:,1]
+    print(f"vertex_all.dtype : {vertex_all.dtype}")
         
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = triangles
 
-    _el_verts = plyfile.PlyElement.describe(aaa, "vertex")
+    _el_verts = plyfile.PlyElement.describe(vertex_all, "vertex")
     _el_faces = plyfile.PlyElement.describe(face, "face")
     _ply_data = plyfile.PlyData([_el_verts, _el_faces])
     print("cool!  saving clusted mesh to %s" % str(ply_filename_out))
