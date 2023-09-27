@@ -244,14 +244,19 @@ def convert_sigma_samples_to_ply(
             @@@ vertices.name : {vertices_.dtype.names}")
     vertex_all = np.empty(N_vertices, vertices_.dtype.descr+v_colors.dtype.descr)
     for prop in vertices_.dtype.names:
-        vertex_all[prop] = vertices_[prop][:, 0]
+        vertex_all[prop] = vertices_[prop][:,0]
     for prop in v_colors.dtype.names:
-        vertex_all[prop] = v_colors[prop][:, 0]
+        vertex_all[prop] = v_colors[prop][:,0]
+
+
+    aaa = np.zeros((N_vertices,), dtype=[("x", "f4"), ("y", "f4"), ("z", "f4"), ('red', 'u1'), ('green', 'u1'), ('blue', 'u1')])
+    for i in range(0, N_vertices):
+        aaa[i] = tuple(vertex_all[i, :])
         
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = triangles
 
-    _el_verts = plyfile.PlyElement.describe(vertex_all, "vertex")
+    _el_verts = plyfile.PlyElement.describe(aaa, "vertex")
     _el_faces = plyfile.PlyElement.describe(face, "face")
     _ply_data = plyfile.PlyData([_el_verts, _el_faces])
     print("cool!  saving clusted mesh to %s" % str(ply_filename_out))
