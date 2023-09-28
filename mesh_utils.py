@@ -209,32 +209,32 @@ def convert_sigma_samples_to_ply(
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
 
-        with torch.no_grad():
-            raw = radiance_field(pts, dummy_viewdirs.cuda(), nerf_model)
-            #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
-            #print(f"@@@ raw : {raw}")
-            weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
-            # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
+        # with torch.no_grad():
+        raw = radiance_field(pts, dummy_viewdirs.cuda(), nerf_model)
+        #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
+        #print(f"@@@ raw : {raw}")
+        weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+        # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
+        
+        ### importance 추가하기..
+        z_vals_mid = .5 * (z_vals[...,1:] + z_vals[...,:-1])
+        z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], 64, det=False, pytest=False)
+        z_samples = z_samples.detach()
+
+        z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
+        pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
+        raw = radiance_field(pts, dummy_viewdirs.cuda(), another_nerf_model)
+
+        weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+
+        opacity = weights.sum(1).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
+        opacity = np.nan_to_num(opacity, 1)
             
-            ### importance 추가하기..
-            z_vals_mid = .5 * (z_vals[...,1:] + z_vals[...,:-1])
-            z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], 64, det=False, pytest=False)
-            z_samples = z_samples.detach()
+        non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
+        non_occluded += opacity < 0.2
 
-            z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
-            pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
-            raw = radiance_field(pts, dummy_viewdirs.cuda(), another_nerf_model)
-
-            weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
-
-            opacity = weights.sum(1).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
-            opacity = np.nan_to_num(opacity, 1)
-                
-            non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
-            non_occluded += opacity < 0.2
-
-            v_color_sum += colors * non_occluded
-            non_occluded_sum += non_occluded
+        v_color_sum += colors * non_occluded
+        non_occluded_sum += non_occluded
 
     v_colors = v_color_sum/non_occluded_sum
     # print(f"v_colors : {v_colors} \n\
