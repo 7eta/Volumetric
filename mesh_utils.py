@@ -58,6 +58,7 @@ def convert_sigma_samples_to_ply(
     poses,
     hwf,
     nerf_model,
+    another_nerf_model,
     radiance_field,
     volume_size,
     ply_filename_out,
@@ -178,7 +179,7 @@ def convert_sigma_samples_to_ply(
         #print(f"colors shape : {colors.shape}") # (9482, 3)
         # print(f"colors : {colors}") -> 
 
-        rays_o = torch.FloatTensor(poses[idx][:, -1]).expand(N_vertices, 3)
+        rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
         #_, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
         # Rotate ray directions from camera frame to the world frame
@@ -219,10 +220,10 @@ def convert_sigma_samples_to_ply(
             z_vals_mid = .5 * (z_vals[...,1:] + z_vals[...,:-1])
             z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], 64, det=False, pytest=False)
             z_samples = z_samples.detach()
-            z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
 
+            z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
             pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
-            raw = radiance_field(pts, dummy_viewdirs.cuda(), nerf_model)
+            raw = radiance_field(pts, dummy_viewdirs.cuda(), another_nerf_model)
 
             weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
 
@@ -300,6 +301,7 @@ def generate_and_write_mesh(i,
     dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor).to(device)
 
     nerf_model = render_kwargs['network_fine']
+    another_nerf_model = render_kwargs['network_fn']
     radiance_field = render_kwargs['network_query_fn']
     '''
     print(f"##coords : {coords}")
@@ -349,6 +351,7 @@ def generate_and_write_mesh(i,
                                          poses, 
                                          hwf,
                                          nerf_model,
+                                         another_nerf_model,
                                          radiance_field,
                                          sizes, 
                                          osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), 
