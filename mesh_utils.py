@@ -79,8 +79,8 @@ def convert_sigma_samples_to_ply(
 
     H, W, focal = hwf
     K = np.array([
-            [focal, 0, W],
-            [0, focal, H],
+            [focal, 0, 0.5*W],
+            [0, focal, 0.5*H],
             [0, 0, 1]
         ])
 
