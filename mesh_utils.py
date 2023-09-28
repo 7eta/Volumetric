@@ -163,7 +163,7 @@ def convert_sigma_samples_to_ply(
         ## project vertices from camera coordinate to pixel coordinate
         vertices_image = (K @ vertices_cam).T # (N, 3)
         depth = vertices_image[:, -1:]+1e-5 # the depth of the vertices, used as far plane
-        vertices_image = vertices_image[:, :2]/depth
+        vertices_image = vertices_image[:, :3]/depth
         vertices_image = vertices_image.astype(np.float32)
         vertices_image[:, 0] = np.clip(vertices_image[:, 0], 0, W-1)
         vertices_image[:, 1] = np.clip(vertices_image[:, 1], 0, H-1)    
