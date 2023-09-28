@@ -236,15 +236,15 @@ def convert_sigma_samples_to_ply(
         v_color_sum += colors * non_occluded
         non_occluded_sum += non_occluded
 
-    v_colors = v_color_sum/non_occluded_sum *10
+    v_colors = v_color_sum/non_occluded_sum *3
     # print(f"v_colors : {v_colors} \n\
     #      v_colors.shape : {v_colors.shape}") # v_colors.shape : (N_vertices, 3)
     v_colors = v_colors.astype(np.uint8)
     v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
     vertex_all = np.empty(N_vertices, vertices_.dtype.descr+v_colors.dtype.descr)
-    print(f"##v_colors.shape : {v_colors.shape}")
-    print(f"@@verices_.shape : {vertices_.shape}")
+    print(f"##v_colors.shape : {v_colors.shape}") # (N_vertices, 1)
+    print(f"@@verices_.shape : {vertices_.shape}") # (N_vertices, 1)
     for prop in vertices_.dtype.names:
         vertex_all[prop] = vertices_[prop][:,0]
     for prop in v_colors.dtype.names:
