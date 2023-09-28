@@ -37,7 +37,6 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
 
     dists = z_vals[...,1:] - z_vals[...,:-1]
     dists = torch.cat([dists, torch.Tensor([1e10]).expand(dists[...,:1].shape)], -1)  # [N_rays, N_samples]
-    rgb = torch.sigmoid(raw[...,:3])  # [N_rays, N_samples, 3]
 
     # dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
     dists = dists * torch.norm(rays_d.unsqueeze(1), dim=-1)
@@ -48,9 +47,8 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
     weights = \
         alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
     
-    rgb_map = torch.sum(weights[...,None] * rgb, -2)  # [N_rays, 3]
 
-    return weights,rgb_map
+    return weights
 
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
@@ -180,7 +178,7 @@ def convert_sigma_samples_to_ply(
         #print(f"colors shape : {colors.shape}") # (9482, 3)
         # print(f"colors : {colors}") -> 
 
-        rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
+        rays_o = torch.FloatTensor(poses[idx][:3, -2]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
         #_, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
         # Rotate ray directions from camera frame to the world frame
@@ -191,7 +189,7 @@ def convert_sigma_samples_to_ply(
         rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
         #viewdirs = torch.reshape(rays_d, [-1,3]).float()
         dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor)
-        near = 1.0  * torch.ones_like(rays_o[:, :1])
+        near = 2.0  * torch.ones_like(rays_o[:, :1])
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
         ## opacity along the path from camera origin to the vertices
@@ -214,7 +212,7 @@ def convert_sigma_samples_to_ply(
             raw = radiance_field(pts, dummy_viewdirs.cuda(), nerf_model)
             #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
             #print(f"@@@ raw : {raw}")
-            weights, _ = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+            weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
             # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
             
             ### importance 추가하기..
@@ -226,9 +224,9 @@ def convert_sigma_samples_to_ply(
             pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
             raw = radiance_field(pts, dummy_viewdirs.cuda(), nerf_model)
 
-            weights, rgb_map = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+            weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
 
-            opacity = rgb_map.sum(0).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
+            opacity = weights.sum(1).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
             opacity = np.nan_to_num(opacity, 1)
                 
             non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
