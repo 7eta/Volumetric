@@ -178,7 +178,7 @@ def convert_sigma_samples_to_ply(
         #print(f"colors shape : {colors.shape}") # (9482, 3)
         # print(f"colors : {colors}") -> 
 
-        rays_o = torch.FloatTensor(poses[idx][:3, -2]).expand(N_vertices, 3)
+        rays_o = torch.FloatTensor(poses[idx][:, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
         #_, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
         # Rotate ray directions from camera frame to the world frame
