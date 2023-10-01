@@ -274,7 +274,7 @@ def convert_sigma_samples_to_ply(
         #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
         #print(f"@@@ raw : {raw}")
         weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
-        print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
+        #print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
         
         ### importance 추가하기..
         z_vals_mid = .5 * (z_vals[...,1:] + z_vals[...,:-1])
@@ -286,9 +286,12 @@ def convert_sigma_samples_to_ply(
         raw = radiance_field(pts, dummy_viewdirs.cuda(), another_nerf_model)
 
         weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+        print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
         
         opacity = weights.cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
+        print(opacity)
         opacity = np.nan_to_num(opacity, 1)
+
             
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
         non_occluded += opacity < 0.2
