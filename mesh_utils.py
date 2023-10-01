@@ -242,8 +242,8 @@ def convert_sigma_samples_to_ply(
         z_samples = z_samples.detach()
 
         z_vals, _ = torch.sort(torch.cat([z_vals.cuda(), z_samples], -1), -1)
-        pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None]
-        raw = radiance_field(pts.cuda(), viewdirs.cuda(), another_nerf_model)
+        pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals[...,:,None]
+        raw = radiance_field(pts, viewdirs.cuda(), another_nerf_model)
 
         #weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
         print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
