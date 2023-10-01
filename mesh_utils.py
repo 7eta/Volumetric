@@ -272,7 +272,7 @@ def convert_sigma_samples_to_ply(
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    for i in range(N_vertices):
+    for i in range(len(v_rays_o)):
         o = v_rays_o[i]
         d = v_rays_d[i]
         ax.quiver(o[0], o[1], o[2], d[0], d[1], d[2], normalize=True, color='b')
