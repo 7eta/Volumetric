@@ -258,6 +258,15 @@ def convert_sigma_samples_to_ply(
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
 
+        _weight = []
+        for k in tqdm(range(pts.shape[1] // N_vertices), desc = "Retrieving densities at grid points"):
+            raw = radiance_field(pts[:, k * N_vertices: (k + 1) * N_vertices, :], dummy_viewdirs, nerf_model)
+            weights = raw2outputs(raw, z_vals.cuda(), dummy_viewdirs.cuda())
+            _weight.append(weights.sum(1))
+
+        print(f"@@!! _weight : {_weight}")
+
+        '''
         # with torch.no_grad():
         raw = radiance_field(pts, dummy_viewdirs.cuda(), nerf_model)
         #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
@@ -275,8 +284,8 @@ def convert_sigma_samples_to_ply(
         raw = radiance_field(pts, dummy_viewdirs.cuda(), another_nerf_model)
 
         weights = raw2outputs(raw, z_vals.cuda(), dummy_viewdirs.cuda())
-
-        opacity = weights.sum(1).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
+        '''
+        opacity = _weight[:, np.newaxis] # (N_vertices, 1) -?확인됨
         opacity = np.nan_to_num(opacity, 1)
             
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
