@@ -184,6 +184,7 @@ def convert_sigma_samples_to_ply(
         # print(f"colors : {colors}") -> 
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
+        _rays_o = torch.FloatTensor(poses[idx][:3, -1]) 
         ## ray's direction is the vector pointing from camera origin to the vertices
         #_, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
         # Rotate ray directions from camera frame to the world frame
@@ -194,7 +195,7 @@ def convert_sigma_samples_to_ply(
         rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
         #viewdirs = torch.reshape(rays_d, [-1,3]).float()
         dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor)
-        dummy_viewdirs = dummy_viewdirs.expand([N_vertices, 3])
+        # dummy_viewdirs = dummy_viewdirs.expand([N_vertices, 3])
         near = 2.0  * torch.ones_like(rays_o[:, :1])
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
@@ -203,8 +204,8 @@ def convert_sigma_samples_to_ply(
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         viewdirs = torch.reshape(rays_d, [-1,3]).type(torch.FloatTensor)
 
-        v_rays_o = np.vstack((v_rays_o, rays_o))
-        v_rays_d = np.vstack((v_rays_d, rays_d))
+        v_rays_o = np.vstack((v_rays_o, _rays_o))
+        v_rays_d = np.vstack((v_rays_d, dummy_viewdirs))
         # print(f"{idx}번째 v_rays_o.shape {v_rays_o.shape}")
         # print(f"{idx}번째 v_rays_d.shape {v_rays_d.shape}")        
         # print(f"@@@ viewdirs : {viewdirs.shape}")
