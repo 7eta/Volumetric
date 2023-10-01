@@ -20,6 +20,53 @@ import pdb
 from PIL import Image
 from run_nerf_helpers import *
 
+def get_ray_directions(H, W, focal):
+    """
+    Get ray directions for all pixels in camera coordinate.
+    Reference: https://www.scratchapixel.com/lessons/3d-basic-rendering/
+               ray-tracing-generating-camera-rays/standard-coordinate-systems
+
+    Inputs:
+        H, W, focal: image height, width and focal length
+
+    Outputs:
+        directions: (H, W, 3), the direction of the rays in camera coordinate
+    """
+    grid = create_meshgrid(H, W, normalized_coordinates=False)[0]
+    i, j = grid.unbind(-1)
+    # the direction here is without +0.5 pixel centering as calibration is not so accurate
+    # see https://github.com/bmild/nerf/issues/24
+    directions = \
+        torch.stack([(i-W/2)/focal, -(j-H/2)/focal, -torch.ones_like(i)], -1) # (H, W, 3)
+
+    return directions
+
+
+def get_rays(directions, c2w):
+    """
+    Get ray origin and normalized directions in world coordinate for all pixels in one image.
+    Reference: https://www.scratchapixel.com/lessons/3d-basic-rendering/
+               ray-tracing-generating-camera-rays/standard-coordinate-systems
+
+    Inputs:
+        directions: (H, W, 3) precomputed ray directions in camera coordinate
+        c2w: (3, 4) transformation matrix from camera coordinate to world coordinate
+
+    Outputs:
+        rays_o: (H*W, 3), the origin of the rays in world coordinate
+        rays_d: (H*W, 3), the normalized direction of the rays in world coordinate
+    """
+    # Rotate ray directions from camera coordinate to the world coordinate
+    rays_d = directions @ c2w[:, :3].T # (H, W, 3)
+    rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
+    # The origin of all rays is the camera origin in world coordinate
+    rays_o = c2w[:, 3].expand(rays_d.shape) # (H, W, 3)
+
+    rays_d = rays_d.view(-1, 3)
+    rays_o = rays_o.view(-1, 3)
+
+    return rays_o, rays_d
+
 def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=False):
     """Transforms model's predictions to semantically meaningful values.
     Args:
@@ -194,8 +241,9 @@ def convert_sigma_samples_to_ply(
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
         ## opacity along the path from camera origin to the vertices
-        #far = 6.0 * torch.ones_like(rays_o[:, :1])
-        far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
+        far = 3.0 * torch.ones_like(rays_o[:, :1])
+        #far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
+        print(f"$$$far : {far}")
         # rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
         # print(f"!!! rays.shape : {rays.shape}") # !!! rays.shape : torch.Size([9482, 8])
 
@@ -205,7 +253,7 @@ def convert_sigma_samples_to_ply(
         #z_vals = near.cuda() * (1.-t_vals) + far.cuda() * (t_vals)
         z_vals = z_vals.expand([N_vertices, 64])
 
-        pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
+        pts = rays_o.cuda()[...,None,:] + dummy_viewdirs.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
         
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
@@ -214,7 +262,7 @@ def convert_sigma_samples_to_ply(
         raw = radiance_field(pts, dummy_viewdirs.cuda(), nerf_model)
         #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
         #print(f"@@@ raw : {raw}")
-        weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+        weights = raw2outputs(raw, z_vals.cuda(), dummy_viewdirs.cuda())
         # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
         
         ### importance 추가하기..
@@ -223,10 +271,10 @@ def convert_sigma_samples_to_ply(
         z_samples = z_samples.detach()
 
         z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
-        pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
+        pts = rays_o.cuda()[...,None,:] + dummy_viewdirs.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
         raw = radiance_field(pts, dummy_viewdirs.cuda(), another_nerf_model)
 
-        weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+        weights = raw2outputs(raw, z_vals.cuda(), dummy_viewdirs.cuda())
 
         opacity = weights.sum(1).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
         opacity = np.nan_to_num(opacity, 1)
@@ -244,6 +292,7 @@ def convert_sigma_samples_to_ply(
     v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
     vertex_all = np.empty(N_vertices, vertices_.dtype.descr+v_colors.dtype.descr)
+    print(f"vertex_all : {vertex_all.size}")
     print(f"##v_colors.shape : {v_colors.shape}") # (N_vertices, 1)
     print(f"@@verices_.shape : {vertices_.shape}") # (N_vertices, 1)
     for prop in vertices_.dtype.names:
