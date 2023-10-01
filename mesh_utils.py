@@ -204,7 +204,7 @@ def convert_sigma_samples_to_ply(
         viewdirs = torch.reshape(rays_d, [-1,3]).type(torch.FloatTensor)
 
         v_rays_o = np.vstack((v_rays_o, rays_o))
-        v_rays_d = np.vstack((v_rays_d, dummy_viewdirs))
+        v_rays_d = np.vstack((v_rays_d, rays_d))
         # print(f"{idx}번째 v_rays_o.shape {v_rays_o.shape}")
         # print(f"{idx}번째 v_rays_d.shape {v_rays_d.shape}")        
         # print(f"@@@ viewdirs : {viewdirs.shape}")
