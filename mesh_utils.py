@@ -201,7 +201,7 @@ def convert_sigma_samples_to_ply(
         image = np.array(image) 
         # print(f"@@image shape : {image.shape}") # (640, 360, 3) -> 
 
-        P_c2w = poses[idx]
+        P_c2w = poses[idx] 
         P_w2c = np.linalg.inv(P_c2w)[:3] # (3, 4)
         ## project vertices from world coordinate to camera coordinate
         vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back" 
@@ -226,7 +226,7 @@ def convert_sigma_samples_to_ply(
         #print(f"colors shape : {colors.shape}") # (9482, 3)
         # print(f"colors : {colors}") -> 
 
-        rays_o = torch.FloatTensor(poses[idx][:3, -2]).expand(N_vertices, 3)
+        rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
         #_, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
         # Rotate ray directions from camera frame to the world frame
@@ -253,7 +253,7 @@ def convert_sigma_samples_to_ply(
         #z_vals = near.cuda() * (1.-t_vals) + far.cuda() * (t_vals)
         z_vals = z_vals.expand([N_vertices, 64])
 
-        pts = rays_o.cuda()[...,None,:] + dummy_viewdirs.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
+        pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
         
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
@@ -271,7 +271,7 @@ def convert_sigma_samples_to_ply(
         z_samples = z_samples.detach()
 
         z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
-        pts = rays_o.cuda()[...,None,:] + dummy_viewdirs.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
+        pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
         raw = radiance_field(pts, dummy_viewdirs.cuda(), another_nerf_model)
 
         weights = raw2outputs(raw, z_vals.cuda(), dummy_viewdirs.cuda())
