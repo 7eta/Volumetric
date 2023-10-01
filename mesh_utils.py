@@ -258,6 +258,7 @@ def convert_sigma_samples_to_ply(
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
 
+        '''
         _weight = []
         for k in tqdm(range(pts.shape[1] // N_vertices), desc = "Retrieving densities at grid points"):
             raw = radiance_field(pts[:, k * N_vertices: (k + 1) * N_vertices, :], dummy_viewdirs, nerf_model)
@@ -272,7 +273,7 @@ def convert_sigma_samples_to_ply(
         raw = radiance_field(pts, dummy_viewdirs.cuda(), nerf_model)
         #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
         #print(f"@@@ raw : {raw}")
-        weights = raw2outputs(raw, z_vals.cuda(), dummy_viewdirs.cuda())
+        weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
         # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
         
         ### importance 추가하기..
@@ -284,9 +285,9 @@ def convert_sigma_samples_to_ply(
         pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
         raw = radiance_field(pts, dummy_viewdirs.cuda(), another_nerf_model)
 
-        weights = raw2outputs(raw, z_vals.cuda(), dummy_viewdirs.cuda())
-        '''
-        opacity = _weight[:, np.newaxis] # (N_vertices, 1) -?확인됨
+        weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+        
+        opacity = weights[:, np.newaxis] # (N_vertices, 1) -?확인됨
         opacity = np.nan_to_num(opacity, 1)
             
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
