@@ -233,8 +233,8 @@ def convert_sigma_samples_to_ply(
         
         ### importance 추가하기..
         z_vals_mid = .5 * (z_vals[...,1:] + z_vals[...,:-1])
-        print(f"z_vals_mid.shape : {z_vals_mid.shape}\n\
-              weights.shape : {weights.shape}")
+        print(f"z_vals_mid.device : {z_vals_mid.device}\n\
+              weights.device : {weights.device}")
         z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], 128, det=False, pytest=False)
         z_samples = z_samples.detach()
 
