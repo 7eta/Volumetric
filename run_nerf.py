@@ -519,6 +519,9 @@ def render_rays(ray_batch,
 
     pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None] # [N_rays, N_samples, 3]
 
+    print(f"pts.device : {pts.device}\n\
+                dummy_viewdirs.device : {viewdirs.device}")
+
     raw = network_query_fn(pts, viewdirs, network_fn)
     #print(f"raw : {raw}")
     # print(f"raw.shape : {raw.shape}") # raw.shaepe : torch.Size([32768, 64, 4])
