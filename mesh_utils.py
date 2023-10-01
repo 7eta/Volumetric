@@ -19,6 +19,9 @@ from torch.distributions import Categorical
 import pdb
 from PIL import Image
 from run_nerf_helpers import *
+import matplotlib.pyplot as plt
+
+from vpython import *
 
 def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=False):
     """Transforms model's predictions to semantically meaningful values.
@@ -146,8 +149,11 @@ def convert_sigma_samples_to_ply(
 
     non_occluded_sum = np.zeros((N_vertices, 1))
     v_color_sum = np.zeros((N_vertices, 3))
-    # print(f"type is {type(target)}")
 
+    v_rays_o = np.empty((N_vertices, 3))
+    v_rays_d = np.empty((N_vertices, 3))
+    
+    # print(f"type is {type(target)}")
     for idx in tqdm(range(len(imgs_path))):
         image = Image.open(imgs_path[idx]).convert('RGB')
         image = image.resize((W, H), Image.LANCZOS)
@@ -197,6 +203,9 @@ def convert_sigma_samples_to_ply(
         #far = 3.0 * torch.ones_like(rays_o[:, :1])
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         viewdirs = torch.reshape(rays_d, [-1,3]).type(torch.FloatTensor)
+
+        v_rays_o = np.vstack((v_rays_o, rays_o))
+        v_rays_d = np.vstack((v_rays_d, rays_d))
         
         print(f"@@@ viewdirs : {viewdirs.shape}")
         #far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
@@ -259,6 +268,18 @@ def convert_sigma_samples_to_ply(
 
         v_color_sum += colors * non_occluded
         non_occluded_sum += non_occluded
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    for i in range(len(N_vertices)):
+        o = v_rays_o[i]
+        d = v_rays_d[i]
+        ax.quiver(o[0], o[1], o[2], d[0], d[1], d[2], normalize=True, color='b')
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    plt.show()
 
     v_colors = v_color_sum/non_occluded_sum
     # print(f"v_colors : {v_colors} \n\
