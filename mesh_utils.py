@@ -228,7 +228,7 @@ def convert_sigma_samples_to_ply(
         # with torch.no_grad():
         print(f"pts.device : {pts.device}\n\
                 dummy_viewdirs.device : {dummy_viewdirs.device}")
-        raw = radiance_field(pts.cuda(), dummy_viewdirs.cuda(), nerf_model)
+        raw = radiance_field(pts.cuda(), viewdirs.cuda(), nerf_model)
         #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
         #print(f"@@@ raw : {raw}")
         weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
@@ -241,9 +241,9 @@ def convert_sigma_samples_to_ply(
         z_samples = sample_pdf(z_vals_mid.cuda(), weights[...,1:-1], 128, det=False, pytest=False)
         z_samples = z_samples.detach()
 
-        z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
+        z_vals, _ = torch.sort(torch.cat([z_vals.cuda(), z_samples], -1), -1)
         pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None]
-        raw = radiance_field(pts.cuda(), dummy_viewdirs.cuda(), another_nerf_model)
+        raw = radiance_field(pts.cuda(), viewdirs.cuda(), another_nerf_model)
 
         #weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
         print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
