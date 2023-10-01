@@ -183,7 +183,7 @@ def convert_sigma_samples_to_ply(
         #print(f"colors shape : {colors.shape}") # (9482, 3)
         # print(f"colors : {colors}") -> 
 
-        __rays_o, __rays_d = get_rays(H, W, K, poses[:3, :4][idx])  # (H, W, 3), (H, W, 3)
+        __rays_o, __rays_d = get_rays(H, W, K, poses[:3, :4][idx].cuda())  # (H, W, 3), (H, W, 3)
         print(f"rays_o : {__rays_o.shape}, rays_d : {__rays_d.shape}")
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
