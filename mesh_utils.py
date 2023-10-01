@@ -21,8 +21,6 @@ from PIL import Image
 from run_nerf_helpers import *
 import matplotlib.pyplot as plt
 
-from vpython import *
-
 def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=False):
     """Transforms model's predictions to semantically meaningful values.
     Args:
