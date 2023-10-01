@@ -201,9 +201,9 @@ def convert_sigma_samples_to_ply(
         # print(f"!!! rays.shape : {rays.shape}") # !!! rays.shape : torch.Size([9482, 8])
 
 
-        t_vals = torch.linspace(0., 1., steps=64).cuda()
-        z_vals = 1./(1./near.cuda() * (1.-t_vals) + 1./far.cuda() * (t_vals)) #결과 비교하기..
-        #z_vals = near.cuda() * (1.-t_vals) + far.cuda() * (t_vals)
+        z_steps = torch.linspace(0, 1, steps=64, device=rays_o.device)
+        print(f"t_vals : {z_steps}, rays_o.device : {rays_o.device}")
+        z_vals = near.cuda() * (1.-z_steps) + far.cuda() * (z_steps)
         z_vals = z_vals.expand([N_vertices, 64])
 
         pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
@@ -238,11 +238,11 @@ def convert_sigma_samples_to_ply(
         pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
         raw = radiance_field(pts, dummy_viewdirs.cuda(), another_nerf_model)
 
-        weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+        #weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
         print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
         
         opacity = weights.sum(1).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
-        print(f"opacity : {opacity}")
+        #print(f"opacity : {opacity}")
         opacity = np.nan_to_num(opacity, 1)
 
             
