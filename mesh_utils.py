@@ -159,7 +159,6 @@ def convert_sigma_samples_to_ply(
         # print(f"@@image shape : {image.shape}") # (640, 360, 3) -> 
 
         P_c2w = poses[idx] 
-        print(f"음..? {P_c2w.shape}, type : {type(P_c2w)}")
         P_w2c = np.linalg.inv(P_c2w)[:3] # (3, 4)
         ## project vertices from world coordinate to camera coordinate
         vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back" 
@@ -183,10 +182,6 @@ def convert_sigma_samples_to_ply(
         colors = np.vstack(colors) # (N_vertices, 3)
         #print(f"colors shape : {colors.shape}") # (9482, 3)
         # print(f"colors : {colors}") -> 
-        
-        print(f"poses : {poses[idx][:3, :4]}")
-        __rays_o, __rays_d = get_rays(H, W, K, poses[idx][:3, :4])  # (H, W, 3), (H, W, 3)
-        print(f"rays_o : {__rays_o.shape}, rays_d : {__rays_d.shape}")
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         _rays_o = torch.FloatTensor(poses[idx][:3, -1]) 
