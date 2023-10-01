@@ -206,7 +206,7 @@ def convert_sigma_samples_to_ply(
         ## project vertices from world coordinate to camera coordinate
         vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back" 
         # print(f"@@vertices_cam shape : {vertices_cam.shape}") # (3, 4, 250) -> (3, 9482)
-        #vertices_cam[1:] *= -1 # (3, N) in "right down forward"
+        vertices_cam[1:] *= -1 # (3, N) in "right down forward"
         ## project vertices from camera coordinate to pixel coordinate
         vertices_image = (K @ vertices_cam).T # (N, 3)
         depth = vertices_image[:, -1:]#+1e-5 # the depth of the vertices, used as far plane
@@ -226,7 +226,7 @@ def convert_sigma_samples_to_ply(
         #print(f"colors shape : {colors.shape}") # (9482, 3)
         # print(f"colors : {colors}") -> 
 
-        rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
+        rays_o = torch.FloatTensor(poses[idx][:3, :4]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
         #_, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
         # Rotate ray directions from camera frame to the world frame
@@ -243,7 +243,7 @@ def convert_sigma_samples_to_ply(
         ## opacity along the path from camera origin to the vertices
         far = 3.0 * torch.ones_like(rays_o[:, :1])
         #far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
-        print(f"$$$far : {far}")
+        #print(f"$$$far : {far}")
         # rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
         # print(f"!!! rays.shape : {rays.shape}") # !!! rays.shape : torch.Size([9482, 8])
 
