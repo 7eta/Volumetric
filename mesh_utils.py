@@ -277,7 +277,12 @@ def convert_sigma_samples_to_ply(
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    plt.show()
+
+    # 그래프를 파일로 저장 (예: PNG 형식)
+    plt.savefig('ray_visualization.png', dpi=300, bbox_inches='tight')
+
+    # 저장된 파일을 닫습니다.
+    plt.close()
 
     v_colors = v_color_sum/non_occluded_sum
     # print(f"v_colors : {v_colors} \n\
