@@ -288,7 +288,7 @@ def convert_sigma_samples_to_ply(
         weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
         
         opacity = weights[:, np.newaxis] # (N_vertices, 1) -?확인됨
-        opacity = np.nan_to_num(opacity, 1)
+        opacity = np.nan_to_num(opacity.cpu().numpy(), 1)
             
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
         non_occluded += opacity < 0.2
