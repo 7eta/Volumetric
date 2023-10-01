@@ -159,6 +159,7 @@ def convert_sigma_samples_to_ply(
         # print(f"@@image shape : {image.shape}") # (640, 360, 3) -> 
 
         P_c2w = poses[idx] 
+        print(f"음..? {P_c2w.shape}")
         P_w2c = np.linalg.inv(P_c2w)[:3] # (3, 4)
         ## project vertices from world coordinate to camera coordinate
         vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back" 
