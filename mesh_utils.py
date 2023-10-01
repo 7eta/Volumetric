@@ -225,7 +225,7 @@ def convert_sigma_samples_to_ply(
         # with torch.no_grad():
         print(f"pts.device : {pts.device}\n\
                 dummy_viewdirs.device : {dummy_viewdirs.device}")
-        raw = radiance_field(pts, dummy_viewdirs, nerf_model)
+        raw = radiance_field(pts.cuda(), dummy_viewdirs.cuda(), nerf_model)
         #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
         #print(f"@@@ raw : {raw}")
         weights = raw2outputs(raw, z_vals, rays_d)
