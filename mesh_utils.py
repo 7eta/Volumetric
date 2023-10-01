@@ -195,6 +195,9 @@ def convert_sigma_samples_to_ply(
         ## the far plane is the depth of the vertices, since what we want is the accumulated
         ## opacity along the path from camera origin to the vertices
         far = 3.0 * torch.ones_like(rays_o[:, :1])
+
+        viewdirs = torch.cat([rays_d[:, -1:], near, far], 1)
+        print(f"@@@ viewdirs : {viewdirs.shape}")
         #far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         #print(f"$$$far : {far}")
         # rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
@@ -235,12 +238,12 @@ def convert_sigma_samples_to_ply(
         z_vals_mid = .5 * (z_vals[...,1:] + z_vals[...,:-1])
         print(f"z_vals_mid.device : {z_vals_mid.device}\n\
               weights.device : {weights.device}")
-        z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], 128, det=False, pytest=False)
+        z_samples = sample_pdf(z_vals_mid.cuda(), weights[...,1:-1], 128, det=False, pytest=False)
         z_samples = z_samples.detach()
 
         z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
         pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None]
-        raw = radiance_field(pts, dummy_viewdirs, another_nerf_model)
+        raw = radiance_field(pts.cuda(), dummy_viewdirs.cuda(), another_nerf_model)
 
         #weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
         print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
