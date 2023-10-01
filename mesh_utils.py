@@ -233,7 +233,9 @@ def convert_sigma_samples_to_ply(
         
         ### importance 추가하기..
         z_vals_mid = .5 * (z_vals[...,1:] + z_vals[...,:-1])
-        z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], 64, det=False, pytest=False)
+        print(f"z_vals_mid.shape : {z_vals_mid.shape}\n\
+              weights.shape : {weights.shape}")
+        z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], 128, det=False, pytest=False)
         z_samples = z_samples.detach()
 
         z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
