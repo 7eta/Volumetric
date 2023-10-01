@@ -206,7 +206,7 @@ def convert_sigma_samples_to_ply(
         ## project vertices from world coordinate to camera coordinate
         vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back" 
         # print(f"@@vertices_cam shape : {vertices_cam.shape}") # (3, 4, 250) -> (3, 9482)
-        vertices_cam[1:] *= -1 # (3, N) in "right down forward"
+        #vertices_cam[1:] *= -1 # (3, N) in "right down forward"
         ## project vertices from camera coordinate to pixel coordinate
         vertices_image = (K @ vertices_cam).T # (N, 3)
         depth = vertices_image[:, -1:]#+1e-5 # the depth of the vertices, used as far plane
