@@ -726,9 +726,9 @@ def config_parser():
                         help='frequency of tensorboard image logging')
     parser.add_argument("--i_weights", type=int, default=3000,
                         help='frequency of weight ckpt saving')
-    parser.add_argument("--i_testset", type=int, default=3000,
+    parser.add_argument("--i_testset", type=int, default=30000000,
                         help='frequency of testset saving')
-    parser.add_argument("--i_video",   type=int, default=3000,
+    parser.add_argument("--i_video",   type=int, default=3000000,
                         help='frequency of render_poses video saving')
     parser.add_argument("--i_mesh", type=int, default=3000,
                         help='frequency of mesh saving')
@@ -1213,7 +1213,7 @@ def train():
        
         if i%args.i_mesh==0 and i > 0:
             mesh_t0 = time.time()
-            levels = [5, 10, 20]
+            levels = [10] # [5, 10, 20]
             print(f"Generating mesh at levels {levels}")
             num_pts = args.mesh_res
             root_path = os.path.join(basedir, expname, 'mash_file')
@@ -1222,8 +1222,8 @@ def train():
             with torch.no_grad():
                 generate_and_write_mesh(global_step, 
                                         bounding_box, 
-                                        poses[i_train].cpu().numpy(), 
-                                        np.array(imgs_path)[i_train], 
+                                        poses.cpu().numpy(), 
+                                        np.array(imgs_path), 
                                         hwf, 
                                         num_pts, 
                                         levels, 

@@ -38,13 +38,15 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
     dists = z_vals[...,1:] - z_vals[...,:-1]
     dists = torch.cat([dists, torch.Tensor([1e10]).expand(dists[...,:1].shape)], -1)  # [N_rays, N_samples]
 
-    dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
+    # dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
+    dists = dists * torch.norm(rays_d.unsqueeze(1), dim=-1)
     noise = 0.
     # sigma_loss = sigma_sparsity_loss(raw[...,3])
     alpha = raw2alpha(raw[...,3] + noise, dists)  # [N_rays, N_samples]
     # weights = alpha * tf.math.cumprod(1.-alpha + 1e-10, -1, exclusive=True)
     weights = \
         alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
+    
 
     return weights
 
@@ -56,6 +58,7 @@ def convert_sigma_samples_to_ply(
     poses,
     hwf,
     nerf_model,
+    another_nerf_model,
     radiance_field,
     volume_size,
     ply_filename_out,
@@ -88,8 +91,8 @@ def convert_sigma_samples_to_ply(
     # transform from voxel coordinates to camera coordinates
     # note x and y are flipped in the output of marching_cubes
     mesh_points = np.zeros_like(verts)
-    mesh_points[:, 0] = voxel_grid_origin[0] + verts[:, 0]
-    mesh_points[:, 1] = voxel_grid_origin[1] + verts[:, 1]
+    mesh_points[:, 0] = voxel_grid_origin[1] + verts[:, 1]
+    mesh_points[:, 1] = voxel_grid_origin[0] + verts[:, 0]
     mesh_points[:, 2] = voxel_grid_origin[2] + verts[:, 2]
 
     # apply additional offset and scale
@@ -159,7 +162,7 @@ def convert_sigma_samples_to_ply(
         vertices_cam[1:] *= -1 # (3, N) in "right down forward"
         ## project vertices from camera coordinate to pixel coordinate
         vertices_image = (K @ vertices_cam).T # (N, 3)
-        depth = vertices_image[:, -1:]+1e-5 # the depth of the vertices, used as far plane
+        depth = vertices_image[:, -1:]#+1e-5 # the depth of the vertices, used as far plane
         vertices_image = vertices_image[:, :2]/depth
         vertices_image = vertices_image.astype(np.float32)
         vertices_image[:, 0] = np.clip(vertices_image[:, 0], 0, W-1)
@@ -178,27 +181,28 @@ def convert_sigma_samples_to_ply(
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
-        _, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
+        #_, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
         # Rotate ray directions from camera frame to the world frame
-        print(f"@@@   _rays_d shape : {_rays_d.shape}")
-        rays_d = torch.reshape(_rays_d, [-1,3]).float()
-        print(f"@@@   rays_d shape : {rays_d.shape}")
-        rays_d = rays_d.expand(N_vertices, 3)
-        # rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
-        viewdirs = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
-        viewdirs = torch.reshape(rays_d, [-1,3]).float()
-        near = np.array([2.0, 6.0]).min() * torch.ones_like(rays_o[:, :1])
+        #print(f"@@@   _rays_d shape : {_rays_d.shape}") # torch.Size([540, 540, 3])
+        #rays_d = torch.reshape(_rays_d, [-1,3]).float() #
+        #print(f"@@@   rays_d shape : {rays_d.shape}")   # torch.Size([291600, 3])
+        rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
+        rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
+        #viewdirs = torch.reshape(rays_d, [-1,3]).float()
+        dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor)
+        near = 2.0  * torch.ones_like(rays_o[:, :1])
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
         ## opacity along the path from camera origin to the vertices
+        #far = 6.0 * torch.ones_like(rays_o[:, :1])
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
-        rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
+        # rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
         # print(f"!!! rays.shape : {rays.shape}") # !!! rays.shape : torch.Size([9482, 8])
 
 
         t_vals = torch.linspace(0., 1., steps=64).cuda()
-        #z_vals = 1./(1./near.cuda() * (1.-t_vals) + 1./far.cuda() * (t_vals)) #결과 비교하기..
-        z_vals = near.cuda() * (1.-t_vals) + far.cuda() * (t_vals)
+        z_vals = 1./(1./near.cuda() * (1.-t_vals) + 1./far.cuda() * (t_vals)) #결과 비교하기..
+        #z_vals = near.cuda() * (1.-t_vals) + far.cuda() * (t_vals)
         z_vals = z_vals.expand([N_vertices, 64])
 
         pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
@@ -206,44 +210,47 @@ def convert_sigma_samples_to_ply(
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
 
-        with torch.no_grad():
-            raw = radiance_field(pts, viewdirs.cuda(), nerf_model)
-            #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
-            #print(f"@@@ raw : {raw}")
-            weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
-            # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
+        # with torch.no_grad():
+        raw = radiance_field(pts, dummy_viewdirs.cuda(), nerf_model)
+        #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
+        #print(f"@@@ raw : {raw}")
+        weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+        # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
+        
+        ### importance 추가하기..
+        z_vals_mid = .5 * (z_vals[...,1:] + z_vals[...,:-1])
+        z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], 64, det=False, pytest=False)
+        z_samples = z_samples.detach()
+
+        z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
+        pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
+        raw = radiance_field(pts, dummy_viewdirs.cuda(), another_nerf_model)
+
+        weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+
+        opacity = weights.sum(1).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
+        opacity = np.nan_to_num(opacity, 1)
             
-            ### importance 추가하기..
-            z_vals_mid = .5 * (z_vals[...,1:] + z_vals[...,:-1])
-            z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], 64, det=False, pytest=False)
-            z_samples = z_samples.detach()
-            z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
+        non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
+        non_occluded += opacity < 0.2
 
-            pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
-            raw = radiance_field(pts, viewdirs.cuda(), nerf_model)
-
-            weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
-
-            opacity = weights.sum(1).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
-            opacity = np.nan_to_num(opacity, 1)
-                
-            non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
-            non_occluded += opacity < 0.2
-
-            v_color_sum += colors * non_occluded
-            non_occluded_sum += non_occluded
+        v_color_sum += colors * non_occluded
+        non_occluded_sum += non_occluded
 
     v_colors = v_color_sum/non_occluded_sum
     # print(f"v_colors : {v_colors} \n\
-    #      v_colors.shape : {v_colors.shape}") # v_colors.shape : (179118, 3)
+    #      v_colors.shape : {v_colors.shape}") # v_colors.shape : (N_vertices, 3)
     v_colors = v_colors.astype(np.uint8)
     v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
     vertex_all = np.empty(N_vertices, vertices_.dtype.descr+v_colors.dtype.descr)
+    print(f"##v_colors.shape : {v_colors.shape}") # (N_vertices, 1)
+    print(f"@@verices_.shape : {vertices_.shape}") # (N_vertices, 1)
     for prop in vertices_.dtype.names:
-        vertex_all[prop] = vertices_[prop][:, 0]
+        vertex_all[prop] = vertices_[prop][:,0]
     for prop in v_colors.dtype.names:
-        vertex_all[prop] = v_colors[prop][:, 0]
+        vertex_all[prop] = v_colors[prop][:,0]
+    print(f"vertex_all.dtype : {vertex_all.dtype}")
         
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = triangles
@@ -295,6 +302,7 @@ def generate_and_write_mesh(i,
     dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor).to(device)
 
     nerf_model = render_kwargs['network_fine']
+    another_nerf_model = render_kwargs['network_fn']
     radiance_field = render_kwargs['network_query_fn']
     '''
     print(f"##coords : {coords}")
@@ -344,6 +352,7 @@ def generate_and_write_mesh(i,
                                          poses, 
                                          hwf,
                                          nerf_model,
+                                         another_nerf_model,
                                          radiance_field,
                                          sizes, 
                                          osp.join(ply_root, f"test_mesh_{i}_{level}.ply"), 
