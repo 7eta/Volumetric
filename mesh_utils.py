@@ -261,7 +261,7 @@ def convert_sigma_samples_to_ply(
         _weight = []
         for k in tqdm(range(pts.shape[1] // N_vertices), desc = "Retrieving densities at grid points"):
             raw = radiance_field(pts[:, k * N_vertices: (k + 1) * N_vertices, :], dummy_viewdirs, nerf_model)
-            weights = raw2outputs(raw, z_vals.cuda(), dummy_viewdirs.cuda())
+            weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
             _weight.append(weights.sum(1))
 
         print(f"@@!! _weight : {_weight}")
