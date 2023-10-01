@@ -184,9 +184,9 @@ def convert_sigma_samples_to_ply(
         # print(f"colors : {colors}") -> 
 
         rays_o = torch.FloatTensor(P_c2w[:3, -1]).expand(N_vertices, 3)
-        _rays_o = torch.FloatTensor(poses[idx][:3, -1]) 
+        # _rays_o = torch.FloatTensor(poses[idx][:3, -1]) 
         ## ray's direction is the vector pointing from camera origin to the vertices
-        _rays_o, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
+        # _rays_o, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
         # Rotate ray directions from camera frame to the world frame
         #print(f"@@@   _rays_d shape : {_rays_d.shape}") # torch.Size([540, 540, 3])
         #rays_d = torch.reshape(_rays_d, [-1,3]).float() #
@@ -204,8 +204,8 @@ def convert_sigma_samples_to_ply(
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         viewdirs = torch.reshape(rays_d, [-1,3]).type(torch.FloatTensor)
 
-        v_rays_o = np.vstack((v_rays_o, _rays_o))
-        v_rays_d = np.vstack((v_rays_d, _rays_d))
+        v_rays_o = np.vstack((v_rays_o, rays_o))
+        v_rays_d = np.vstack((v_rays_d, rays_d))
         #print(f"{idx}번째 v_rays_o.shape {v_rays_o.shape}")
         #print(f"{idx}번째 v_rays_d.shape {v_rays_d.shape}")        
         # print(f"@@@ viewdirs : {viewdirs.shape}")
@@ -272,7 +272,7 @@ def convert_sigma_samples_to_ply(
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    for i in range(len(_rays_o)):
+    for i in range(len(v_rays_o)):
         o = v_rays_o[i]
         d = v_rays_d[i]
         ax.quiver(o[0], o[1], o[2], d[0], d[1], d[2], normalize=True, color='b')
