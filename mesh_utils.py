@@ -196,7 +196,8 @@ def convert_sigma_samples_to_ply(
         ## opacity along the path from camera origin to the vertices
         far = 3.0 * torch.ones_like(rays_o[:, :1])
 
-        viewdirs = torch.cat([rays_d[:, -1:], near, far], 1)
+        viewdirs = torch.reshape(rays_d, [-1,3]).type(torch.FloatTensor)
+        
         print(f"@@@ viewdirs : {viewdirs.shape}")
         #far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         #print(f"$$$far : {far}")
@@ -205,7 +206,7 @@ def convert_sigma_samples_to_ply(
 
         # print(f"near.shape : {near.shape}") # near.shape : torch.Size([29995, 1]) 
         z_steps = torch.linspace(0, 1, steps=64, device=rays_o.device)
-        print(f"t_vals : {z_steps}, rays_o.device : {rays_o.device}")
+        # print(f"t_vals : {z_steps}, rays_o.device : {rays_o.device}")
         z_vals = near * (1.-z_steps) + far * (z_steps)
         z_vals = z_vals.expand([N_vertices, 64])
 
@@ -226,8 +227,8 @@ def convert_sigma_samples_to_ply(
 
         '''
         # with torch.no_grad():
-        print(f"pts.device : {pts.device}\n\
-                dummy_viewdirs.device : {dummy_viewdirs.device}")
+        # print(f"pts.device : {pts.device}\n\
+        #        dummy_viewdirs.device : {dummy_viewdirs.device}")
         raw = radiance_field(pts.cuda(), viewdirs.cuda(), nerf_model)
         #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
         #print(f"@@@ raw : {raw}")
@@ -236,9 +237,9 @@ def convert_sigma_samples_to_ply(
         
         ### importance 추가하기..
         z_vals_mid = .5 * (z_vals[...,1:] + z_vals[...,:-1])
-        print(f"z_vals_mid.device : {z_vals_mid.device}\n\
-              weights.device : {weights.device}")
-        z_samples = sample_pdf(z_vals_mid.cuda(), weights[...,1:-1], 128, det=False, pytest=False)
+        # print(f"z_vals_mid.device : {z_vals_mid.device}\n\
+        #       weights.device : {weights.device}")
+        z_samples = sample_pdf(z_vals_mid.cuda(), weights[...,1:-1], 64, det=False, pytest=False)
         z_samples = z_samples.detach()
 
         z_vals, _ = torch.sort(torch.cat([z_vals.cuda(), z_samples], -1), -1)
@@ -246,7 +247,7 @@ def convert_sigma_samples_to_ply(
         raw = radiance_field(pts, viewdirs.cuda(), another_nerf_model)
 
         #weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
-        print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
+        # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
         
         opacity = weights.sum(1).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
         #print(f"opacity : {opacity}")
