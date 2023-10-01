@@ -205,8 +205,8 @@ def convert_sigma_samples_to_ply(
 
         v_rays_o = np.vstack((v_rays_o, rays_o))
         v_rays_d = np.vstack((v_rays_d, dummy_viewdirs))
-        print(f"{idx}번째 v_rays_o.shape {v_rays_o.shape}")
-        print(f"{idx}번째 v_rays_d.shape {v_rays_d.shape}")        
+        # print(f"{idx}번째 v_rays_o.shape {v_rays_o.shape}")
+        # print(f"{idx}번째 v_rays_d.shape {v_rays_d.shape}")        
         # print(f"@@@ viewdirs : {viewdirs.shape}")
         #far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         #print(f"$$$far : {far}")
@@ -275,6 +275,10 @@ def convert_sigma_samples_to_ply(
         o = v_rays_o[i]
         d = v_rays_d[i]
         ax.quiver(o[0], o[1], o[2], d[0], d[1], d[2], normalize=True, color='b')
+
+    ax.set_xlim([v_rays_o[:, 0].min(), v_rays_o[:, 0].max()])
+    ax.set_ylim([v_rays_o[:, 1].min(), v_rays_o[:, 1].max()])
+    ax.set_zlim([v_rays_o[:, 2].min(), v_rays_o[:, 2].max()])
 
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
