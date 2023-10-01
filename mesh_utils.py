@@ -203,10 +203,10 @@ def convert_sigma_samples_to_ply(
 
         z_steps = torch.linspace(0, 1, steps=64, device=rays_o.device)
         print(f"t_vals : {z_steps}, rays_o.device : {rays_o.device}")
-        z_vals = near.cuda() * (1.-z_steps) + far.cuda() * (z_steps)
+        z_vals = near() * (1.-z_steps) + far() * (z_steps)
         z_vals = z_vals.expand([N_vertices, 64])
 
-        pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals.cuda()[...,:,None]
+        pts = rays_o()[...,None,:] + rays_d()[...,None,:] * z_vals()[...,:,None]
         
         sh = rays_d.shape # [..., 3] ->확인됨
         # print(f"### sh.shape : {sh}")
