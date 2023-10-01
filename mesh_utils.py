@@ -160,7 +160,6 @@ def convert_sigma_samples_to_ply(
 
         P_c2w = poses[idx] 
         P_w2c = np.linalg.inv(P_c2w)[:3] # (3, 4)
-        print(f"P_w2c : {P_w2c}")
         ## project vertices from world coordinate to camera coordinate
         vertices_cam = (P_w2c @ vertices_homo.T) # (3, N) in "right up back" 
         # print(f"@@vertices_cam shape : {vertices_cam.shape}") # (3, 4, 250) -> (3, 9482)
@@ -184,17 +183,17 @@ def convert_sigma_samples_to_ply(
         #print(f"colors shape : {colors.shape}") # (9482, 3)
         # print(f"colors : {colors}") -> 
 
-        rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
+        rays_o = torch.FloatTensor(P_c2w[:3, -1]).expand(N_vertices, 3)
         _rays_o = torch.FloatTensor(poses[idx][:3, -1]) 
         ## ray's direction is the vector pointing from camera origin to the vertices
-        #_, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
+        _rays_o, _rays_d = get_rays(H, W, K, torch.Tensor(P_c2w[:3,:4]))
         # Rotate ray directions from camera frame to the world frame
         #print(f"@@@   _rays_d shape : {_rays_d.shape}") # torch.Size([540, 540, 3])
         #rays_d = torch.reshape(_rays_d, [-1,3]).float() #
         #print(f"@@@   rays_d shape : {rays_d.shape}")   # torch.Size([291600, 3])
         rays_d = torch.FloatTensor(vertices_) - rays_o # (N_vertices, 3)
         rays_d = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
-        #viewdirs = torch.reshape(rays_d, [-1,3]).float()
+        #viewdirs = torch.reshapec(rays_d, [-1,3]).float()
         dummy_viewdirs = torch.tensor([0, 0, 1]).view(-1, 3).type(torch.FloatTensor)
         # dummy_viewdirs = dummy_viewdirs.expand([N_vertices, 3])
         near = 2.0  * torch.ones_like(rays_o[:, :1])
@@ -205,8 +204,8 @@ def convert_sigma_samples_to_ply(
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         viewdirs = torch.reshape(rays_d, [-1,3]).type(torch.FloatTensor)
 
-        v_rays_o = np.vstack((v_rays_o, rays_o))
-        v_rays_d = np.vstack((v_rays_d, rays_d))
+        v_rays_o = np.vstack((v_rays_o, _rays_o))
+        v_rays_d = np.vstack((v_rays_d, _rays_d))
         #print(f"{idx}번째 v_rays_o.shape {v_rays_o.shape}")
         #print(f"{idx}번째 v_rays_d.shape {v_rays_d.shape}")        
         # print(f"@@@ viewdirs : {viewdirs.shape}")
@@ -273,7 +272,7 @@ def convert_sigma_samples_to_ply(
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    for i in range(20):
+    for i in range(len(_rays_o)):
         o = v_rays_o[i]
         d = v_rays_d[i]
         ax.quiver(o[0], o[1], o[2], d[0], d[1], d[2], normalize=True, color='b')
