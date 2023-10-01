@@ -246,7 +246,7 @@ def convert_sigma_samples_to_ply(
         pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals[...,:,None]
         raw = radiance_field(pts, viewdirs.cuda(), another_nerf_model)
 
-        #weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
+        weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
         # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
         
         opacity = weights.sum(1).cpu().numpy()[:, np.newaxis] # (N_vertices, 1) -?확인됨
