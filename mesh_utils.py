@@ -148,8 +148,8 @@ def convert_sigma_samples_to_ply(
     non_occluded_sum = np.zeros((N_vertices, 1))
     v_color_sum = np.zeros((N_vertices, 3))
 
-    v_rays_o = np.empty((N_vertices, 3))
-    v_rays_d = np.empty((N_vertices, 3))
+    v_rays_o = np.empty((0, 3))
+    v_rays_d = np.empty((0, 3))
     
     # print(f"type is {type(target)}")
     for idx in tqdm(range(len(imgs_path))):
