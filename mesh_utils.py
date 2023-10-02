@@ -191,7 +191,7 @@ def convert_sigma_samples_to_ply(
         ## project vertices from camera coordinate to pixel coordinate
         vertices_image = (K @ vertices_cam).T # (N, 3)
         depth = vertices_image[:, -1:]+1e-5 # the depth of the vertices, used as far plane
-        vertices_image = vertices_image[:, :1]/depth
+        vertices_image = vertices_image[:, :2]/depth
         vertices_image = vertices_image.astype(np.float32)
         vertices_image[:, 0] = np.clip(vertices_image[:, 0], 0, W-1)
         vertices_image[:, 1] = np.clip(vertices_image[:, 1], 0, H-1)    
@@ -224,8 +224,8 @@ def convert_sigma_samples_to_ply(
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
         ## opacity along the path from camera origin to the vertices
-        #far = 3.0 * torch.ones_like(rays_o[:, :1])
-        far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
+        far = 4.0 * torch.ones_like(rays_o[:, :1])
+        #far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         viewdirs = torch.reshape(rays_d, [-1,3]).type(torch.FloatTensor)
 
         # v_rays_o = np.vstack((v_rays_o, rays_o))
