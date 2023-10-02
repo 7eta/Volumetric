@@ -170,8 +170,8 @@ def convert_sigma_samples_to_ply(
     non_occluded_sum = np.zeros((N_vertices, 1))
     v_color_sum = np.zeros((N_vertices, 3))
 
-    v_rays_o = np.empty((0, 3))
-    v_rays_d = np.empty((0, 3))
+    # v_rays_o = np.empty((0, 3))
+    # v_rays_d = np.empty((0, 3))
     
     # print(f"type is {type(target)}")
     for idx in tqdm(range(len(imgs_path))):
@@ -226,8 +226,8 @@ def convert_sigma_samples_to_ply(
         far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
         viewdirs = torch.reshape(rays_d, [-1,3]).type(torch.FloatTensor)
 
-        v_rays_o = np.vstack((v_rays_o, rays_o))
-        v_rays_d = np.vstack((v_rays_d, rays_d))
+        # v_rays_o = np.vstack((v_rays_o, rays_o))
+        # v_rays_d = np.vstack((v_rays_d, rays_d))
         #print(f"{idx}번째 v_rays_o.shape {v_rays_o.shape}")
         #print(f"{idx}번째 v_rays_d.shape {v_rays_d.shape}")        
         # print(f"@@@ viewdirs : {viewdirs.shape}")
@@ -292,6 +292,7 @@ def convert_sigma_samples_to_ply(
         v_color_sum += colors * non_occluded
         non_occluded_sum += non_occluded
 
+    '''
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     for i in range(len(v_rays_o)):
@@ -312,6 +313,7 @@ def convert_sigma_samples_to_ply(
 
     # 저장된 파일을 닫습니다.
     plt.close()
+    '''
 
     v_colors = v_color_sum/non_occluded_sum
     # print(f"v_colors : {v_colors} \n\
