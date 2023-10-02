@@ -96,8 +96,8 @@ def convert_sigma_samples_to_ply(
 
     vertices_ = (vertices/256).astype(np.float32)
 
-    x_ = (bb_max[1]-bb_min[1]) * vertices_[:, 1] + bb_min[1]
-    y_ = (bb_max[0]-bb_min[0]) * vertices_[:, 0] + bb_min[0]
+    x_ = (bb_max[0]-bb_min[0]) * vertices_[:, 1] + bb_min[0]
+    y_ = (bb_max[1]-bb_min[1]) * vertices_[:, 0] + bb_min[1]
     vertices_[:, 0] = x_
     vertices_[:, 1] = y_
     vertices_[:, 2] = (bb_max[2]-bb_min[2]) * vertices_[:, 2] + bb_min[2]
