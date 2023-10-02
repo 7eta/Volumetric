@@ -155,7 +155,7 @@ def convert_sigma_samples_to_ply(
     mesh = o3d.io.read_triangle_mesh(ply_filename_out)
     idxs, count, _ = mesh.cluster_connected_triangles()
     max_cluster_idx = np.argmax(count)
-    triangles_to_remove = [i for i in range(len(faces_tuple)) if idxs[i] != max_cluster_idx]
+    triangles_to_remove = [i for i in range(len(face)) if idxs[i] != max_cluster_idx]
     mesh.remove_triangles_by_index(triangles_to_remove)
     mesh.remove_unreferenced_vertices()
     print(f'Mesh has {len(mesh.vertices)/1e6:.2f} M vertices and {len(mesh.triangles)/1e6:.2f} M faces.')
