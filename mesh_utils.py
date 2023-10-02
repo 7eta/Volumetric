@@ -346,6 +346,15 @@ def generate_and_write_mesh(i,
     bb_min = (*(bounding_box[0] + near).cpu().numpy(),)
     bb_max = (*(bounding_box[1] - near).cpu().numpy(),)
 
+    print(f"\n\
+          bb_min[0] : {bb_min[0]}\n\
+          bb_min[1] : {bb_min[1]}\n\
+          bb_min[2] : {bb_min[2]}\n\
+          bb_max[0] : {bb_max[0]}\n\
+          bb_max[1] : {bb_max[1]}\n\
+          bb_max[2] : {bb_max[2]}\n\
+            ")
+
     #x_vals = torch.tensor(np.linspace(bb_min[0], bb_max[0], num_pts))
     #y_vals = torch.tensor(np.linspace(bb_min[1], bb_max[1], num_pts))
     #z_vals = torch.tensor(np.linspace(bb_min[2], bb_max[2], num_pts))
@@ -354,9 +363,9 @@ def generate_and_write_mesh(i,
     ymin, ymax = [-1.2, 1.2]
     zmin, zmax = [-1.2, 1.2]
     # assert xmax-xmin == ymax-ymin == zmax-zmin, 'the ranges must have the same length!'
-    x_vals = np.linspace(xmin, xmax, N)
-    y_vals = np.linspace(ymin, ymax, N)
-    z_vals = np.linspace(zmin, zmax, N)
+    x_vals = np.linspace(xmin, xmax, num_pts)
+    y_vals = np.linspace(ymin, ymax, num_pts)
+    z_vals = np.linspace(zmin, zmax, num_pts)
 
 
     xs, ys, zs = torch.meshgrid(x_vals, y_vals, z_vals, indexing = 'ij')
