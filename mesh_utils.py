@@ -103,9 +103,7 @@ def convert_sigma_samples_to_ply(
     vertices_[:, 2] = (bb_max[2]-bb_min[2]) * vertices_[:, 2] + bb_min[2]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
 
-    print(f"vertices_[:,0]'srange : {vertices_[:, 0].min()} to {vertices_[:, 0].max()}")
-    print(f"vertices_[:,1]'srange : {vertices_[:, 1].min()} to {vertices_[:, 1].max()}")
-    print(f"vertices_[:,2]'srange : {vertices_[:, 2].min()} to {vertices_[:, 2].max()}")
+    print(f"verices_[:, 0] : {vertices_[:, 0]}")
 
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = triangles
