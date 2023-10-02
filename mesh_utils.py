@@ -53,7 +53,8 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
 
 def convert_sigma_samples_to_ply(
     input_3d_sigma_array: np.ndarray,
-    voxel_grid_origin,
+    bb_min,
+    bb_max,
     device,
     imgs_path,
     poses,
@@ -84,17 +85,37 @@ def convert_sigma_samples_to_ply(
             [0, focal, 0.5*H],
             [0, 0, 1]
         ])
-
+    
+    ''' #3D 메쉬 표현..
     verts, faces, normals, values = skimage.measure.marching_cubes(
         input_3d_sigma_array, level=level, spacing=volume_size
     )
+    '''
+    print('Extracting mesh ...')
+    vertices, triangles = mcubes.marching_cubes(input_3d_sigma_array, 20.0)
+
+    vertices_ = (vertices/256).astype(np.float32)
+
+    x_ = (bb_max[1]-bb_min[1]) * vertices_[:, 1] + bb_min[1]
+    y_ = (bb_max[0]-bb_min[0]) * vertices_[:, 0] + bb_min[0]
+    vertices_[:, 0] = x_
+    vertices_[:, 1] = y_
+    vertices_[:, 2] = (bb_max[2]-bb_min[2]) * vertices_[:, 2] + bb_min[2]
+    vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
+
+    face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
+    face['vertex_indices'] = triangles
+
+    plyfile.PlyData([plyfile.PlyElement.describe(vertices_[:, 0], 'vertex'), 
+             plyfile.PlyElement.describe(face, 'face')]).write(ply_filename_out)
+
 
     # transform from voxel coordinates to camera coordinates
     # note x and y are flipped in the output of marching_cubes
-    mesh_points = np.zeros_like(verts)
-    mesh_points[:, 0] = voxel_grid_origin[1] + verts[:, 1]
-    mesh_points[:, 1] = voxel_grid_origin[0] + verts[:, 0]
-    mesh_points[:, 2] = voxel_grid_origin[2] + verts[:, 2]
+    # mesh_points = np.zeros_like(verts)
+    # mesh_points[:, 0] = voxel_grid_origin[1] + verts[:, 1]
+    # mesh_points[:, 1] = voxel_grid_origin[0] + verts[:, 0]
+    # mesh_points[:, 2] = voxel_grid_origin[2] + verts[:, 2]
 
     # apply additional offset and scale
     if scale is not None:
@@ -107,7 +128,7 @@ def convert_sigma_samples_to_ply(
     # mesh_points = np.matmul(mesh_points, np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]))
     # mesh_points = np.matmul(mesh_points, np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]))
 
-
+    '''
     num_verts = verts.shape[0]
     num_faces = faces.shape[0]
 
@@ -127,6 +148,7 @@ def convert_sigma_samples_to_ply(
     ply_data = plyfile.PlyData([el_verts, el_faces])
     print("saving mesh to %s" % str(ply_filename_out))
     ply_data.write(ply_filename_out)
+    '''
 
     # remove noise in the mesh by keeping only the biggest cluster
     print('Removing noise ...')
@@ -355,10 +377,11 @@ def generate_and_write_mesh(i,
           bb_max[2] : {bb_max[2]}\n\
             ")
 
-    #x_vals = torch.tensor(np.linspace(bb_min[0], bb_max[0], num_pts))
-    #y_vals = torch.tensor(np.linspace(bb_min[1], bb_max[1], num_pts))
-    #z_vals = torch.tensor(np.linspace(bb_min[2], bb_max[2], num_pts))
+    x_vals = torch.tensor(np.linspace(bb_min[0], bb_max[0], num_pts))
+    y_vals = torch.tensor(np.linspace(bb_min[1], bb_max[1], num_pts))
+    z_vals = torch.tensor(np.linspace(bb_min[2], bb_max[2], num_pts))
 
+    '''
     xmin, xmax = [-1.2, 1.2]
     ymin, ymax = [-1.2, 1.2]
     zmin, zmax = [-1.2, 1.2]
@@ -366,7 +389,7 @@ def generate_and_write_mesh(i,
     x_vals = torch.tensor(np.linspace(xmin, xmax, num_pts))
     y_vals = torch.tensor(np.linspace(ymin, ymax, num_pts))
     z_vals = torch.tensor(np.linspace(zmin, zmax, num_pts))
-
+    '''
 
     xs, ys, zs = torch.meshgrid(x_vals, y_vals, z_vals, indexing = 'ij')
     coords = torch.stack((xs, ys, zs), dim = -1)
@@ -419,7 +442,8 @@ def generate_and_write_mesh(i,
         try:
             sizes = (abs(bounding_box[1] - bounding_box[0]).cpu()).tolist()
             convert_sigma_samples_to_ply(input_sigma_arr, 
-                                         list(bb_min), 
+                                         bb_min,
+                                         bb_max, 
                                          device, 
                                          imgs_path, 
                                          poses, 
