@@ -92,7 +92,7 @@ def convert_sigma_samples_to_ply(
     )
     '''
     print('Extracting mesh ...')
-    vertices, triangles = mcubes.marching_cubes(input_3d_sigma_array, 20.0)
+    vertices, triangles = mcubes.marching_cubes(input_3d_sigma_array, 5.0)
 
     vertices_ = (vertices/256).astype(np.float32)
 
