@@ -100,7 +100,7 @@ def convert_sigma_samples_to_ply(
     y_ = (bb_max[0]-bb_min[0]) * vertices_[:, 0] + bb_min[0]
     vertices_[:, 0] = x_
     vertices_[:, 1] = y_
-    vertices_[:, 2] = (bb_max[2]-bb_min[2]) * vertices_[:, 2] + bb_min[2]
+    vertices_[:, 2] = (bb_max[2]-bb_min[2]) * vertices_[:, 2] #- bb_min[2]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
 
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
