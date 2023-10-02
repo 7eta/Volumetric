@@ -346,9 +346,18 @@ def generate_and_write_mesh(i,
     bb_min = (*(bounding_box[0] + near).cpu().numpy(),)
     bb_max = (*(bounding_box[1] - near).cpu().numpy(),)
 
-    x_vals = torch.tensor(np.linspace(bb_min[0], bb_max[0], num_pts))
-    y_vals = torch.tensor(np.linspace(bb_min[1], bb_max[1], num_pts))
-    z_vals = torch.tensor(np.linspace(bb_min[2], bb_max[2], num_pts))
+    #x_vals = torch.tensor(np.linspace(bb_min[0], bb_max[0], num_pts))
+    #y_vals = torch.tensor(np.linspace(bb_min[1], bb_max[1], num_pts))
+    #z_vals = torch.tensor(np.linspace(bb_min[2], bb_max[2], num_pts))
+
+    xmin, xmax = [-1.2, 1.2]
+    ymin, ymax = [-1.2, 1.2]
+    zmin, zmax = [-1.2, 1.2]
+    # assert xmax-xmin == ymax-ymin == zmax-zmin, 'the ranges must have the same length!'
+    x_vals = np.linspace(xmin, xmax, N)
+    y_vals = np.linspace(ymin, ymax, N)
+    z_vals = np.linspace(zmin, zmax, N)
+
 
     xs, ys, zs = torch.meshgrid(x_vals, y_vals, z_vals, indexing = 'ij')
     coords = torch.stack((xs, ys, zs), dim = -1)
