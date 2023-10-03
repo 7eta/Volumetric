@@ -134,6 +134,9 @@ def render(H, W, K, chunk=1024*32, rays=None, c2w=None, ndc=True,
     rays_o = torch.reshape(rays_o, [-1,3]).float()
     rays_d = torch.reshape(rays_d, [-1,3]).float()
 
+    # print(f"rays_o.shape : {rays_o.shape}") # torch.Size([1024, 3])
+    # print(f"rays_d.shape : {rays_d.shape}") # torch.Size([1024, 3])
+
     near, far = near * torch.ones_like(rays_d[...,:1]), far * torch.ones_like(rays_d[...,:1])
     rays = torch.cat([rays_o, rays_d, near, far], -1)
     if use_viewdirs:
@@ -488,6 +491,7 @@ def render_rays(ray_batch,
     viewdirs = ray_batch[:,-3:] if ray_batch.shape[-1] > 8 else None
     bounds = torch.reshape(ray_batch[...,6:8], [-1,1,2])
     near, far = bounds[...,0], bounds[...,1] # [-1,1] near) torch.Size([32768, 1]), torch.Size([32768, 1])
+    # print(f"near : {near}, near.shape : {near.shape}") # shape : torch.Size([1024, 1])
 
     t_vals = torch.linspace(0., 1., steps=N_samples)
     if not lindisp:
@@ -725,9 +729,9 @@ def config_parser():
                         help='frequency of tensorboard image logging')
     parser.add_argument("--i_weights", type=int, default=3000,
                         help='frequency of weight ckpt saving')
-    parser.add_argument("--i_testset", type=int, default=3000,
+    parser.add_argument("--i_testset", type=int, default=30000000,
                         help='frequency of testset saving')
-    parser.add_argument("--i_video",   type=int, default=3000,
+    parser.add_argument("--i_video",   type=int, default=3000000,
                         help='frequency of render_poses video saving')
     parser.add_argument("--i_mesh", type=int, default=3000,
                         help='frequency of mesh saving')
@@ -1234,7 +1238,7 @@ def train():
        
         if i%args.i_mesh==0 and i > 0:
             mesh_t0 = time.time()
-            levels = [5, 10, 20]
+            levels = [10] # [5, 10, 20]
             print(f"Generating mesh at levels {levels}")
             num_pts = args.mesh_res
             root_path = os.path.join(basedir, expname, 'mash_file')
@@ -1243,8 +1247,8 @@ def train():
             with torch.no_grad():
                 generate_and_write_mesh(global_step, 
                                         bounding_box, 
-                                        poses[i_train].cpu().numpy(), 
-                                        np.array(imgs_path)[i_train], 
+                                        poses.cpu().numpy(), 
+                                        np.array(imgs_path), 
                                         hwf, 
                                         num_pts, 
                                         levels, 
