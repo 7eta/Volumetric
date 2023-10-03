@@ -92,7 +92,7 @@ def convert_sigma_samples_to_ply(
     )
     '''
     print('Extracting mesh ...')
-    vertices, triangles = mcubes.marching_cubes(input_3d_sigma_array, 10.0)
+    vertices, triangles = mcubes.marching_cubes(input_3d_sigma_array, 15.0)
 
     vertices_ = (vertices/256).astype(np.float32)
 
@@ -119,15 +119,15 @@ def convert_sigma_samples_to_ply(
     # mesh_points[:, 2] = voxel_grid_origin[2] + verts[:, 2]
 
     # apply additional offset and scale
-    if scale is not None:
-        mesh_points = mesh_points / scale
-    if offset is not None:
-        mesh_points = mesh_points - offset
-    print("mesh_points",mesh_points)
+#     if scale is not None:
+#         mesh_points = mesh_points / scale
+#     if offset is not None:
+#         mesh_points = mesh_points - offset
+    #print("mesh_points",mesh_points)
     # try writing to the ply file
 
-    # mesh_points = np.matmul(mesh_points, np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]))
-    # mesh_points = np.matmul(mesh_points, np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]))
+#     mesh_points = np.matmul(mesh_points, np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]))
+#     mesh_points = np.matmul(mesh_points, np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]))
 
     '''
     num_verts = verts.shape[0]

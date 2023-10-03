@@ -646,7 +646,7 @@ def config_parser():
                         help='number of rays processed in parallel, decrease if running out of memory')
     parser.add_argument("--netchunk", type=int, default=1024*64,
                         help='number of pts sent through network in parallel, decrease if running out of memory')
-    parser.add_argument("--no_batching", action='store_false',
+    parser.add_argument("--no_batching", action='store_true',
                         help='only take random rays from 1 image at a time')
     parser.add_argument("--no_reload", action='store_true',
                         help='do not reload weights from saved ckpt')
@@ -721,19 +721,19 @@ def config_parser():
                         help='will take every 1/N images as LLFF test set, paper uses 8')
 
     # logging/saving options
-    parser.add_argument("--n_iters", type=int, default=3000,
+    parser.add_argument("--n_iters", type=int, default=5000,
                         help='number of iteration')
     parser.add_argument("--i_print",   type=int, default=100,
                         help='frequency of console printout and metric loggin')
-    parser.add_argument("--i_img",     type=int, default=3000,
+    parser.add_argument("--i_img",     type=int, default=5000,
                         help='frequency of tensorboard image logging')
-    parser.add_argument("--i_weights", type=int, default=3000,
+    parser.add_argument("--i_weights", type=int, default=5000,
                         help='frequency of weight ckpt saving')
     parser.add_argument("--i_testset", type=int, default=30000000,
                         help='frequency of testset saving')
     parser.add_argument("--i_video",   type=int, default=3000000,
                         help='frequency of render_poses video saving')
-    parser.add_argument("--i_mesh", type=int, default=3000,
+    parser.add_argument("--i_mesh", type=int, default=5000,
                         help='frequency of mesh saving')
 
     parser.add_argument("--finest_res",   type=int, default=512,
@@ -982,11 +982,14 @@ def train():
         os.makedirs(root_path, exist_ok=True)
         print(root_path)
         print("bounding_box : ",bounding_box)
-        
+        print(i_train)
+        print("poses",poses.shape)
+        print("imgs_path",len(imgs_path))
+#         print(args.no_batching)
         generate_and_write_mesh(global_step,
                                 bounding_box,
-                                poses[i_train],
-                                np.array(imgs_path)[i_train],
+                                poses[i_test],
+                                np.array(imgs_path)[i_test],
                                 hwf, 
                                 num_pts,
                                 levels,
@@ -994,6 +997,8 @@ def train():
                                 device,
                                 root_path,
                                 **render_kwargs_train)
+        
+        
         print('Done, saving mesh at ', root_path)
         return 
     
@@ -1238,7 +1243,7 @@ def train():
        
         if i%args.i_mesh==0 and i > 0:
             mesh_t0 = time.time()
-            levels = [10] # [5, 10, 20]
+            levels = [5,20] # [5, 10, 20]
             print(f"Generating mesh at levels {levels}")
             num_pts = args.mesh_res
             root_path = os.path.join(basedir, expname, 'mash_file')
