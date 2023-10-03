@@ -642,12 +642,14 @@ def config_parser():
                         help='number of rays processed in parallel, decrease if running out of memory')
     parser.add_argument("--netchunk", type=int, default=1024*64,
                         help='number of pts sent through network in parallel, decrease if running out of memory')
-    parser.add_argument("--no_batching", action='store_true',
+    parser.add_argument("--no_batching", action='store_false',
                         help='only take random rays from 1 image at a time')
     parser.add_argument("--no_reload", action='store_true',
                         help='do not reload weights from saved ckpt')
     parser.add_argument("--ft_path", type=str, default=None,
                         help='specific weights npy file to reload for coarse network')
+    parser.add_argument("--accumulation_steps", type=int, default=20,
+                        help='Gradients for n-step, then update at once')
 
     # rendering options
     parser.add_argument("--N_samples", type=int, default=64,
@@ -742,7 +744,7 @@ def config_parser():
     parser.add_argument("--video_in", type=str, default="",
                         help='./video/path/video.mp4')
     
-        # mesh options 
+   # mesh options 
     parser.add_argument("--mesh_only", action='store_true', 
                         help='do not optimize, reload weights and generate mesh')
     parser.add_argument("--mesh_res", type=int, default=256, 
@@ -793,11 +795,12 @@ def train():
         print('NEAR FAR', near, far)
 
     elif args.dataset_type == 'blender':
-        images, poses, render_poses, hwf, i_split, bounding_box = load_blender_data(args.datadir, args.half_res, args.testskip)
+        images, poses, render_poses, hwf, i_split, bounding_box, imgs_path = load_blender_data(args.datadir, args.half_res, args.testskip)
+        print("imgs_path",len(imgs_path))
         args.bounding_box = bounding_box
         print('Loaded blender', images.shape, render_poses.shape, hwf, args.datadir)
         i_train, i_val, i_test = i_split
-
+        print("i_train",len(i_train))
         near = 2.
         far = 6.
 
@@ -814,7 +817,7 @@ def train():
             args.datadir = "./" + colmap.run(args.videodir)
             print(f"cold2NeRF time : {time.time() - colmap_time}")
         
-        images, poses, render_poses, hwf, i_test, bounding_box = load_ingp_data(args.datadir, args.factor, width=None, height=None)
+        images, poses, render_poses, hwf, i_test, bounding_box, imgs_path = load_ingp_data(args.datadir, args.factor, width=None, height=None)
         args.bounding_box = bounding_box
         print('Loaded ingp', images.shape, render_poses.shape, hwf, args.datadir)
         
@@ -835,8 +838,8 @@ def train():
         
     elif args.dataset_type == 'own':
         if args.video_in != "":
-             import colmap
-             print(f"colmap return은 {colmap.run(args.video_in)}")
+            import colmap
+            print(f"colmap return은 {colmap.run(args.video_in)}")
         images, poses, render_poses, hwf, i_split, bounding_box, imgs_path = load_own_data(args.datadir, args.half_res, args.testskip)
         args.bounding_box = bounding_box
         print('Loaded own data', images.shape, render_poses.shape, hwf, args.datadir)
@@ -968,14 +971,25 @@ def train():
             return
         
     if args.mesh_only:
-        levels = [0, 5, 10, 15, 20]
+        levels = [10]
         print(f"Generating mesh at levels {levels}")
         num_pts = args.mesh_res
         root_path = os.path.join(basedir, expname, 'mesh_test')
         os.makedirs(root_path, exist_ok=True)
         print(root_path)
-        generate_and_write_mesh(global_step,bounding_box, num_pts, levels, args.chunk, device, root_path, **render_kwargs_train)
-
+        print("bounding_box : ",bounding_box)
+        
+        generate_and_write_mesh(global_step,
+                                bounding_box,
+                                poses[i_train],
+                                np.array(imgs_path)[i_train],
+                                hwf, 
+                                num_pts,
+                                levels,
+                                args.chunk,
+                                device,
+                                root_path,
+                                **render_kwargs_train)
         print('Done, saving mesh at ', root_path)
         return 
     
@@ -1019,8 +1033,9 @@ def train():
         # For random ray batching
         print('get rays')
         rays = np.stack([get_rays_np(H, W, K, p) for p in poses[:,:3,:4]], 0) # [N, ro+rd, H, W, 3]
-        print('done, concats')
+        print('done, concats',rays.shape)
         rays_rgb = np.concatenate([rays, images[:,None]], 1) # [N, ro+rd+rgb, H, W, 3]
+        print('done, concats',rays_rgb.shape)
         rays_rgb = np.transpose(rays_rgb, [0,2,3,1,4]) # [N, H, W, ro+rd+rgb, 3]
         rays_rgb = np.stack([rays_rgb[i] for i in i_train], 0) # train images only
         rays_rgb = np.reshape(rays_rgb, [-1,3,3]) # [(N-1)*H*W, ro+rd+rgb, 3]
@@ -1094,7 +1109,6 @@ def train():
                         print(f"[Config] Center cropping of size {2*dH} x {2*dW} is enabled until iter {args.precrop_iters}")
                 else:
                     coords = torch.stack(torch.meshgrid(torch.linspace(0, H-1, H), torch.linspace(0, W-1, W)), -1)  # (H, W, 2)
-
                 coords = torch.reshape(coords, [-1,2])  # (H * W, 2)
                 select_inds = np.random.choice(coords.shape[0], size=[N_rand], replace=False)  # (N_rand,)
                 select_coords = coords[select_inds].long()  # (N_rand, 2)
@@ -1135,11 +1149,21 @@ def train():
             loss = loss + args.tv_loss_weight * TV_loss
             if i>500:
                 args.tv_loss_weight = 0.0
-
+        
+#         # Accumulate Gradients
+#         loss = loss / args.accumulation_steps
+#         loss.backward()
+        
+#         if (i+1) % args.accumulation_steps == 0: 
+#             # pdb.set_trace()
+#             optimizer.step() 
+            
+#             optimizer.zero_grad()
+        
         loss.backward()
         # pdb.set_trace()
         optimizer.step()
-
+        
         # NOTE: IMPORTANT!
         ###   update learning rate   ###
         decay_rate = 0.1
@@ -1228,8 +1252,8 @@ def train():
                                         device, 
                                         root_path, 
                                         **render_kwargs_train)
+                
             print('Done, saving mesh at ', root_path)
-
 
         if i%args.i_print==0:
             tqdm.write(f"[TRAIN] Iter: {i} Loss: {loss.item()}  PSNR: {psnr.item()}")

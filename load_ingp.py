@@ -180,4 +180,4 @@ def load_ingp_data(basedir, factor=1, width=None, height=None):
     print('bounding_box_llff',get_bbox3d_for_llff(poses[:,:3,:4], [H, W, focal], near=0.0, far=1.0))
     print('bounding_box_blender',bounding_box)
     
-    return imgs, poses, render_poses, [H, W, focal], i_test, bounding_box#, i_split
+    return imgs, poses, render_poses, [H, W, focal], i_test, bounding_box, imgfiles

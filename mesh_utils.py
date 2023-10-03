@@ -84,7 +84,8 @@ def convert_sigma_samples_to_ply(
     verts, faces, normals, values = skimage.measure.marching_cubes(
         input_3d_sigma_array, level=level, spacing=volume_size
     )
-
+    
+    
     # transform from voxel coordinates to camera coordinates
     # note x and y are flipped in the output of marching_cubes
     mesh_points = np.zeros_like(verts)
@@ -97,7 +98,7 @@ def convert_sigma_samples_to_ply(
         mesh_points = mesh_points / scale
     if offset is not None:
         mesh_points = mesh_points - offset
-
+    print("mesh_points",mesh_points)
     # try writing to the ply file
 
     # mesh_points = np.matmul(mesh_points, np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]))
@@ -106,12 +107,12 @@ def convert_sigma_samples_to_ply(
 
     num_verts = verts.shape[0]
     num_faces = faces.shape[0]
-
+    
     verts_tuple = np.zeros((num_verts,), dtype=[("x", "f4"), ("y", "f4"), ("z", "f4")])
-
+    
     for i in range(0, num_verts):
         verts_tuple[i] = tuple(mesh_points[i, :])
-
+    print("verts_tuple",verts_tuple)
     faces_building = []
     for i in range(0, num_faces):
         faces_building.append(((faces[i, :].tolist(),)))
@@ -135,6 +136,7 @@ def convert_sigma_samples_to_ply(
     print(f'Mesh has {len(mesh.vertices)/1e6:.2f} M vertices and {len(mesh.triangles)/1e6:.2f} M faces.')
 
     vertices_ = np.asarray(mesh.vertices).astype(np.float32)
+    # print("vertices_ : ",vertices_)
     triangles = np.asarray(mesh.triangles)
     N_vertices = len(vertices_)
     print(f"len(N_vertices) is {N_vertices}.")
@@ -149,7 +151,7 @@ def convert_sigma_samples_to_ply(
         image = Image.open(imgs_path[idx]).convert('RGB')
         image = image.resize((W, H), Image.LANCZOS)
         image = np.array(image) 
-        # print(f"@@image shape : {image.shape}") # (640, 360, 3) -> 
+        print(f"@@image shape : {image.shape}") # (640, 360, 3) -> 
 
         P_c2w = poses[idx]
         P_w2c = np.linalg.inv(P_c2w)[:3] # (3, 4)
@@ -164,7 +166,7 @@ def convert_sigma_samples_to_ply(
         vertices_image = vertices_image.astype(np.float32)
         vertices_image[:, 0] = np.clip(vertices_image[:, 0], 0, W-1)
         vertices_image[:, 1] = np.clip(vertices_image[:, 1], 0, H-1)    
-
+        
         colors = []
         remap_chunk = int(3e4)
         for i in range(0, N_vertices, remap_chunk):
@@ -173,7 +175,9 @@ def convert_sigma_samples_to_ply(
                                 vertices_image[i:i+remap_chunk, 1],
                                 interpolation=cv2.INTER_LINEAR)[:, 0]]
         colors = np.vstack(colors) # (N_vertices, 3)
-        print(f"colors shape : {colors.shape}") # (9482, 3)
+        #print(f"colors shape : {colors.shape}") # (9482, 3)
+        print(colors)
+        # np.savetxt('colors.csv',colors)
 
         rays_o = torch.FloatTensor(poses[idx][:3, -1]).expand(N_vertices, 3)
         ## ray's direction is the vector pointing from camera origin to the vertices
@@ -183,7 +187,10 @@ def convert_sigma_samples_to_ply(
         # _near = near.cuda()
         ## the far plane is the depth of the vertices, since what we want is the accumulated
         ## opacity along the path from camera origin to the vertices
-        far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
+        #far = torch.FloatTensor(depth) * torch.ones_like(rays_o[:, :1])
+        far = torch.ones_like(rays_o[:, :1])*6
+        
+        # print("%%% near, far : ",near,far)
         rays = torch.cat([rays_o, rays_d, near, far], 1).cuda()
         # print(f"!!! rays.shape : {rays.shape}") # !!! rays.shape : torch.Size([9482, 8])
 
@@ -199,7 +206,7 @@ def convert_sigma_samples_to_ply(
 
         with torch.no_grad():
             raw = radiance_field(pts, rays_d.cuda(), nerf_model)
-            #print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
+            # print(f"@@@ raw.shape : {raw.shape}") # torch.Size([9482, 64, 4])
             #print(f"@@@ raw : {raw}")
             weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
             # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
@@ -207,22 +214,29 @@ def convert_sigma_samples_to_ply(
         opacity = np.nan_to_num(opacity, 1)
             
         non_occluded = np.ones_like(non_occluded_sum) * 0.1/depth
-        non_occluded += opacity < 0.5
+        non_occluded += opacity < 0.2
 
         v_color_sum += colors * non_occluded
         non_occluded_sum += non_occluded
 
     v_colors = v_color_sum/non_occluded_sum
+    # print("$$$v_colors : ",v_colors.shape)
     v_colors = v_colors.astype(np.uint8)
     v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
     vertex_all = np.empty(N_vertices, vertices_.dtype.descr+v_colors.dtype.descr)
+    #vertex_all = np.zeros_like(vertex_all)
+    print(".dtype.descr : ",vertices_.dtype.descr)
+    print("vertex_all : ",vertex_all.shape)
     for prop in vertices_.dtype.names:
         vertex_all[prop] = vertices_[prop][:,0]
+        print("\n",prop,vertex_all[prop])
     for prop in v_colors.dtype.names:
         vertex_all[prop] = v_colors[prop][:, 0]
+        print("\n",prop,vertex_all[prop])
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = triangles
+    
     _el_verts = plyfile.PlyElement.describe(vertex_all, "vertex")
     _el_faces = plyfile.PlyElement.describe(face, "face")
     _ply_data = plyfile.PlyData([_el_verts, _el_faces])
@@ -296,6 +310,7 @@ def generate_and_write_mesh(i,
         chunk_outs.append(chunk_out.detach().cpu().numpy()[:, :, -1])
 
     input_sigma_arr = np.concatenate(chunk_outs, axis = -1).reshape(num_pts, num_pts, num_pts)
+    print(f"##chunk_out.shape : {chunk_out.shape}")
     '''
     print(f"##chunk_out : {chunk_out}")
     print(f"##chunk_out.shape : {chunk_out.shape}")
