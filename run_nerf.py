@@ -721,19 +721,19 @@ def config_parser():
                         help='will take every 1/N images as LLFF test set, paper uses 8')
 
     # logging/saving options
-    parser.add_argument("--n_iters", type=int, default=5000,
+    parser.add_argument("--n_iters", type=int, default=3000,
                         help='number of iteration')
     parser.add_argument("--i_print",   type=int, default=100,
                         help='frequency of console printout and metric loggin')
-    parser.add_argument("--i_img",     type=int, default=5000,
+    parser.add_argument("--i_img",     type=int, default=3000,
                         help='frequency of tensorboard image logging')
-    parser.add_argument("--i_weights", type=int, default=5000,
+    parser.add_argument("--i_weights", type=int, default=3000,
                         help='frequency of weight ckpt saving')
-    parser.add_argument("--i_testset", type=int, default=30000000,
+    parser.add_argument("--i_testset", type=int, default=3000,
                         help='frequency of testset saving')
-    parser.add_argument("--i_video",   type=int, default=3000000,
+    parser.add_argument("--i_video",   type=int, default=3000,
                         help='frequency of render_poses video saving')
-    parser.add_argument("--i_mesh", type=int, default=5000,
+    parser.add_argument("--i_mesh", type=int, default=3000,
                         help='frequency of mesh saving')
 
     parser.add_argument("--finest_res",   type=int, default=512,
@@ -836,9 +836,11 @@ def train():
         
         i_train = np.array([i for i in np.arange(int(images.shape[0])) if
                         (i not in i_test and i not in i_val)])
-
-        near = 2.
-        far = 6.  
+        
+            
+        near = 4
+        far = 10.0
+  
         
     elif args.dataset_type == 'own':
         if args.video_in != "":
@@ -988,8 +990,8 @@ def train():
 #         print(args.no_batching)
         generate_and_write_mesh(global_step,
                                 bounding_box,
-                                poses[i_test],
-                                np.array(imgs_path)[i_test],
+                                poses[i_train],
+                                np.array(imgs_path)[i_train],
                                 hwf, 
                                 num_pts,
                                 levels,
@@ -1243,7 +1245,7 @@ def train():
        
         if i%args.i_mesh==0 and i > 0:
             mesh_t0 = time.time()
-            levels = [5,20] # [5, 10, 20]
+            levels = [10] # [5, 10, 20]
             print(f"Generating mesh at levels {levels}")
             num_pts = args.mesh_res
             root_path = os.path.join(basedir, expname, 'mash_file')

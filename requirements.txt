@@ -2,4 +2,7 @@ kornia
 plyfile
 PyMCubes
 open3d
+openvino
 pyvista
+configargparse
+torchmetrics

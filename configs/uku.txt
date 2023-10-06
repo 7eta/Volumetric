@@ -21,5 +21,3 @@ lrate = 0.01
 lrate_decay = 10
 
 mesh_res = 256
-
-factor = 4
