@@ -719,6 +719,10 @@ def config_parser():
                         help='set for spherical 360 scenes')
     parser.add_argument("--llffhold", type=int, default=8,
                         help='will take every 1/N images as LLFF test set, paper uses 8')
+    parser.add_argument("--ingp_near", type=float, default=2.,
+                        help='ingp near')
+    parser.add_argument("--ingp_far", type=float, default=6.,
+                        help='ingp near')
 
     # logging/saving options
     parser.add_argument("--n_iters", type=int, default=3000,
@@ -838,9 +842,9 @@ def train():
                         (i not in i_test and i not in i_val)])
         
             
-        near = 4
-        far = 10.0
-  
+        near = args.ingp_near
+        far = args.ingp_far
+        print('NEAR FAR', near, far)
         
     elif args.dataset_type == 'own':
         if args.video_in != "":
