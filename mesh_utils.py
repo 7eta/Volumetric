@@ -92,7 +92,7 @@ def convert_sigma_samples_to_ply(
     )
     '''
     print('Extracting mesh ...')
-    vertices, triangles = mcubes.marching_cubes(input_3d_sigma_array, 15.0)
+    vertices, triangles = mcubes.marching_cubes(input_3d_sigma_array, 5.0)
 
     vertices_ = (vertices/256).astype(np.float32)
 
@@ -290,7 +290,7 @@ def convert_sigma_samples_to_ply(
 
         z_vals, _ = torch.sort(torch.cat([z_vals.cuda(), z_samples], -1), -1)
         pts = rays_o.cuda()[...,None,:] + rays_d.cuda()[...,None,:] * z_vals[...,:,None]
-        raw = radiance_field(pts, viewdirs.cuda(), another_nerf_model)
+        raw = radiance_field(pts.cuda(), viewdirs.cuda(), another_nerf_model)
 
         weights = raw2outputs(raw, z_vals.cuda(), rays_d.cuda())
         # print(f"@@@ weights : {weights.shape}") # torch.Size([9482, 64])라서 raw2outputs의 return에 .sum(1)을 하였음
@@ -384,6 +384,9 @@ def generate_and_write_mesh(i,
     near = render_kwargs['near']
     bb_min = (*(bounding_box[0] + near).cpu().numpy(),)
     bb_max = (*(bounding_box[1] - near).cpu().numpy(),)
+    
+    bb_min = (-2.45,-2.712,-1.876) 
+    bb_max = (2.61, 2.47, 1.84)
 
     print(f"\n\
           bb_min[0] : {bb_min[0]}\n\
@@ -408,7 +411,7 @@ def generate_and_write_mesh(i,
     z_vals = torch.tensor(np.linspace(zmin, zmax, num_pts))
     '''
 
-    xs, ys, zs = torch.meshgrid(x_vals, y_vals, z_vals, indexing = 'ij')
+    xs, ys, zs = torch.meshgrid(y_vals, x_vals, z_vals, indexing = 'ij')
     coords = torch.stack((xs, ys, zs), dim = -1)
 
     coords = coords.view(1, -1, 3).type(torch.FloatTensor).to(device)

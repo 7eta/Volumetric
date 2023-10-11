@@ -1254,12 +1254,20 @@ def train():
             num_pts = args.mesh_res
             root_path = os.path.join(basedir, expname, 'mash_file')
             os.makedirs(root_path, exist_ok=True)
-
+            render_imgs_path = []
+            rander_path = os.listdir(os.path.join(basedir, expname, 'video_frame_003000/rgbs'))
+            
+            for r_name in sorted(rander_path):
+                render_imgs_path.append(os.path.join(basedir, expname, 'video_frame_003000/rgbs',r_name))
+            print(render_imgs_path)
+            
+#             render_imgs_path = moviebase
+            
             with torch.no_grad():
                 generate_and_write_mesh(global_step, 
                                         bounding_box, 
-                                        poses.cpu().numpy()[i_test], 
-                                        np.array(imgs_path)[i_test], 
+                                        render_poses.cpu().numpy(), 
+                                        np.array(render_imgs_path), 
                                         hwf, 
                                         num_pts, 
                                         levels, 
